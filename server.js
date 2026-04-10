@@ -60,6 +60,8 @@ const pool = mysql.createPool({
   user:               process.env.DB_USER || "root",
   password:           process.env.DB_PASS || "",
   database:           process.env.DB_NAME || "adaptive_learning",
+  port:               parseInt(process.env.DB_PORT, 10) || 3306,  // ← ADD THIS
+  ssl:                process.env.DB_HOST?.includes('railway.app') ? { rejectUnauthorized: false } : undefined,  // ← ADD THIS
   waitForConnections: true,
   connectionLimit:    10,
   queueLimit:         0,
