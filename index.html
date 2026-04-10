@@ -460,7 +460,7 @@ input:focus { border-bottom-color: var(--text); }
       <div style="text-align: center; margin-bottom: 16px; color: var(--muted); font-size: 13px;">
          New teacher? <a href="#" onclick="switchTab('teacher-register'); return false;">Create an account</a>.
       </div>
-      <div class="error-msg" id="teacher-auth-error"></div>
+      <div class="error-msg" id="teacher-login-error"></div>
       <div style="text-align:center; margin-top:24px; border-top: 1px solid var(--border); padding-top:24px;">
         <button class="btn btn-ghost btn-sm" onclick="switchTab('login')">← Back to Student Login</button>
       </div>
@@ -485,7 +485,7 @@ input:focus { border-bottom-color: var(--text); }
       <div style="text-align: center; margin-bottom: 16px; color: var(--muted); font-size: 13px;">
          Already registered? <a href="#" onclick="switchTab('teacher-login'); return false;">Sign in</a>.
       </div>
-      <div class="error-msg" id="teacher-auth-error"></div>
+      <div class="error-msg" id="teacher-register-error"></div>
       <div style="text-align:center; margin-top:24px; border-top: 1px solid var(--border); padding-top:24px;">
         <button class="btn btn-ghost btn-sm" onclick="switchTab('login')">← Back to Student Login</button>
       </div>
@@ -926,15 +926,20 @@ function switchTab(tab) {
      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
   }
   
-  document.getElementById('auth-error').textContent = '';
+  // Clear all error elements on tab switch
+  ['auth-error', 'teacher-login-error', 'teacher-register-error'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
 }
 
 async function handleTeacherRegister() {
   const name = document.getElementById('teacher-reg-name').value.trim();
   const email = document.getElementById('teacher-reg-email').value.trim();
   const pass = document.getElementById('teacher-reg-password').value;
-  const errEl = document.getElementById('teacher-auth-error') || document.getElementById('auth-error');
+  const errEl = document.getElementById('teacher-register-error');
 
+  if (errEl) errEl.textContent = '';
   if (!name || !email || !pass) {
     if (errEl) errEl.textContent = 'Please fill all fields';
     return toast('Fill all fields', 'error');
@@ -965,7 +970,8 @@ async function handleTeacherRegister() {
 async function handleTeacherLogin() {
   const email = document.getElementById('teacher-login-email').value.trim();
   const pass  = document.getElementById('teacher-login-password').value;
-  const errEl = document.getElementById('teacher-auth-error') || document.getElementById('auth-error');
+  const errEl = document.getElementById('teacher-login-error');
+  if (errEl) errEl.textContent = '';
   try {
     const res = await fetch(`${API_BASE}/api/teacher/login`, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -1039,6 +1045,8 @@ async function handleRegister() {
   const password = document.getElementById("reg-password").value;
   const department = document.getElementById("reg-dept").value;
   const semester = document.getElementById("reg-sem").value;
+  const errEl = document.getElementById('auth-error');
+  if (errEl) errEl.textContent = '';
 
   try {
     const res = await fetch(`${BASE_URL}/register`, {
@@ -1058,16 +1066,16 @@ async function handleRegister() {
     const data = await res.json();
 
     if (!res.ok) {
-      alert(data.error || "Registration failed");
+      if (errEl) errEl.textContent = data.error || "Registration failed";
       return;
     }
 
-    alert("Registered successfully ✅");
+    toast("Registered successfully ✅", "success");
     switchTab("login");
 
   } catch (err) {
     console.error(err);
-    alert("Cannot connect to the server. Make sure the backend is running on port 8000.");
+    if (errEl) errEl.textContent = "Cannot connect to the server. Make sure the backend is running.";
   }
 }
 
@@ -1124,6 +1132,10 @@ function logout() {
   if (loginEmail) loginEmail.value = '';
   if (loginPass)  loginPass.value  = '';
   document.getElementById('auth-error').textContent = '';
+  ['teacher-login-error', 'teacher-register-error'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
   switchTab('login');
 }
 
