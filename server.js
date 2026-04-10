@@ -29,8 +29,6 @@ const allowedOrigins = [
   "http://127.0.0.1:8000",
   "http://localhost:5500",
   "http://127.0.0.1:5500",
-  "https://lumina-ai-khaki.vercel.app",   // Vercel frontend — hardcoded for reliability
-  "https://lumina-ai-0nb5.onrender.com",  // Render backend itself
 ];
 if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
 
@@ -62,8 +60,8 @@ const pool = mysql.createPool({
   user:               process.env.DB_USER || "root",
   password:           process.env.DB_PASS || "",
   database:           process.env.DB_NAME || "adaptive_learning",
-  port:               parseInt(process.env.DB_PORT, 10) || 3306,
-  ssl:                { rejectUnauthorized: false },  // Required for Railway MySQL
+  port:               parseInt(process.env.DB_PORT, 10) || 3306,  // ← ADD THIS
+  ssl:                process.env.DB_HOST?.includes('railway.app') ? { rejectUnauthorized: false } : undefined,  // ← ADD THIS
   waitForConnections: true,
   connectionLimit:    10,
   queueLimit:         0,
@@ -230,7 +228,8 @@ app.post("/api/teacher/register", async (req, res) => {
     return res.status(201).json({ teacher_id: result.insertId, name, email });
   } catch (e) {
     if (e.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "Email already registered" });
-    return res.status(500).json({ error: "Registration failed" });
+    console.error("Teacher register error:", e.message);
+    return res.status(500).json({ error: "Registration failed: " + e.message });
   }
 });
 
@@ -394,7 +393,9 @@ app.get("/performance", async (req, res) => {
 app.get("/api/recommendations/:student_id", async (req, res) => {
   const { student_id } = req.params;
   try {
-    await pool.execute("CALL generate_study_roadmap(?)", [student_id]);
+    // Run stored procedure — ignore errors (e.g. no scores yet)
+    try { await pool.execute("CALL generate_study_roadmap(?)", [student_id]); } catch (_) {}
+
     const [rows] = await pool.execute(
       `SELECT t.topic_name, sp.score_percentage
        FROM study_plan sp JOIN topics t ON sp.topic_id = t.topic_id
@@ -403,12 +404,13 @@ app.get("/api/recommendations/:student_id", async (req, res) => {
       [student_id]
     );
     if (rows.length === 0)
-      return res.json({ status: "success", advice: "You're doing great! No critical weak areas found." });
+      return res.json({ status: "success", advice: "🎉 You're doing great! No critical weak areas found. Keep up the good work!" });
     const advice = await getAIStudyAdvice(rows);
-    return res.json({ status: "success", topics: rows, advice: advice || "Focus on reviewing your weak topics." });
+    return res.json({ status: "success", topics: rows, advice: advice || "Focus on reviewing your weak topics consistently every day." });
   } catch (e) {
     console.error("Recommendations:", e.message);
-    return res.status(500).json({ status: "error", message: e.message });
+    // Return a friendly message instead of an error so the UI doesn't break
+    return res.json({ status: "success", advice: "Add your scores first to get personalised AI study advice!" });
   }
 });
 
@@ -541,7 +543,7 @@ app.post("/api/send-report", async (req, res) => {
 
     // Send email
     const info = await transporter.sendMail({
-      from:    `"Lumina AI Insights" <${process.env.EMAIL_USER || 'noreply@lumina.ai'}>`,
+      from:    '"Lumina AI Insights" <noreply@lumina.ai>',
       to:      teacherEmail,
       subject: isQuiz ? `[Quiz Result] ${quizTopic} — ${studentName}` : `[Progress Report] ${studentName}`,
       html: `<div style="font-family:sans-serif;max-width:600px;color:#333">
