@@ -835,7 +835,10 @@ const _servedByBackend = (_port === '8000') || (_port === '') ||
   _host.includes('railway.app') || _host.includes('render.com') ||
   _host.includes('onrender.com') || _host.includes('vercel.app');
 
-const API_BASE = _servedByBackend ? '' : 'http://localhost:8000';
+const API_BASE =
+  _host.includes('vercel.app')
+    ? 'https://lumina-ai-0nb5.onrender.com'
+    : (_servedByBackend ? '' : 'http://localhost:8000');
 // BASE_URL is an alias so all fetch calls work identically
 const BASE_URL = API_BASE;
 let chatHistory = [];
