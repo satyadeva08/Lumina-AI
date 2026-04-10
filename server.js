@@ -29,6 +29,8 @@ const allowedOrigins = [
   "http://127.0.0.1:8000",
   "http://localhost:5500",
   "http://127.0.0.1:5500",
+  "https://lumina-ai-khaki.vercel.app",   // Vercel frontend — hardcoded for reliability
+  "https://lumina-ai-0nb5.onrender.com",  // Render backend itself
 ];
 if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
 
@@ -60,8 +62,8 @@ const pool = mysql.createPool({
   user:               process.env.DB_USER || "root",
   password:           process.env.DB_PASS || "",
   database:           process.env.DB_NAME || "adaptive_learning",
-  port:               parseInt(process.env.DB_PORT, 10) || 3306,  // ← ADD THIS
-  ssl:                process.env.DB_HOST?.includes('railway.app') ? { rejectUnauthorized: false } : undefined,  // ← ADD THIS
+  port:               parseInt(process.env.DB_PORT, 10) || 3306,
+  ssl:                { rejectUnauthorized: false },  // Required for Railway MySQL
   waitForConnections: true,
   connectionLimit:    10,
   queueLimit:         0,
@@ -539,7 +541,7 @@ app.post("/api/send-report", async (req, res) => {
 
     // Send email
     const info = await transporter.sendMail({
-      from:    '"Lumina AI Insights" <noreply@lumina.ai>',
+      from:    `"Lumina AI Insights" <${process.env.EMAIL_USER || 'noreply@lumina.ai'}>`,
       to:      teacherEmail,
       subject: isQuiz ? `[Quiz Result] ${quizTopic} — ${studentName}` : `[Progress Report] ${studentName}`,
       html: `<div style="font-family:sans-serif;max-width:600px;color:#333">
