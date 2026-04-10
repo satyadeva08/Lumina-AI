@@ -1,0 +1,2427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumina — Adaptive Learning Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
+<style>
+:root {
+  --bg:       #faf7f2;
+  --bg2:      #ffffff;
+  --bg3:      #f4f1ec;
+  --surface:  #ffffff;
+  --text:     #1a1a1a;
+  --muted:    #828282;
+  --accent:   #9b4d45;
+  --accent-soft: rgba(155, 77, 69, 0.06);
+  --critical: #d9534f;
+  --weak:     #f0ad4e;
+  --average:  #5bc0de;
+  --strong:   #5cb85c;
+  --border:   #e8e3dc;
+  --r:  1px; /* Wix-style sharp edges */
+  --r2: 4px;
+  --r3: 8px;
+  --shadow: 0 4px 30px rgba(0,0,0,0.03);
+  --font-display: 'Playfair Display', serif;
+  --font-body:    'Inter', sans-serif;
+  --sidebar-w: 260px;
+}
+
+body.dark-mode {
+  --bg:       #171614;
+  --bg2:      #242321;
+  --bg3:      #2d2c2a;
+  --surface:  #242321;
+  --text:     #ebe8e1;
+  --muted:    #a09d96;
+  --accent:   #e07a6f;
+  --accent-soft: rgba(224, 122, 111, 0.1);
+  --border:   #3d3a36;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ── */
+.app { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 48px 0;
+  position: fixed;
+  top: 0; bottom: 0; left: 0;
+  z-index: 1000;
+}
+
+.logo { padding: 0 40px 48px; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+.logo-mark {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.logo-mark span { font-style: italic; color: var(--accent); }
+
+.nav { flex: 1; padding: 0 24px; overflow-y: auto; }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  position: relative;
+}
+.nav-item:hover { color: var(--text); }
+.nav-item.active { color: var(--text); background: var(--bg3); }
+.nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); }
+.nav-icon { width: 17px; height: 17px; stroke-width: 1.5; color: var(--muted); }
+.nav-item.active .nav-icon { color: var(--accent); }
+
+.sidebar-footer { padding: 32px 24px; border-top: 1px solid var(--border); }
+.user-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--r2);
+  margin-bottom: 16px;
+}
+.avatar { color: var(--accent); font-family: var(--font-display); font-size: 18px; font-weight: 600; }
+.user-info { display: flex; flex-direction: column; }
+.user-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.user-dept { font-size: 12px; color: var(--muted); font-style: italic; }
+
+.main { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; position: relative; }
+
+.topbar {
+  height: 80px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 48px;
+  position: sticky;
+  top: 0;
+  z-index: 500;
+}
+.page-title { 
+  font-family: var(--font-display); 
+  font-size: 24px; 
+  font-weight: 400; 
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.content { padding: 48px; max-width: 1200px; margin: 0 auto; }
+.card { padding: 40px; margin-bottom: 48px; }
+.topic-row { padding: 24px 0; }
+.roadmap-item { padding: 32px; margin-bottom: 16px; }
+
+/* ── Screen management ── */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── Auth screen ── */
+.auth-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 64px;
+  width: 500px;
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.05);
+}
+.auth-logo {
+  font-family: var(--font-display);
+  font-size: 36px;
+  text-align: center;
+  margin-bottom: 32px;
+}
+.auth-tabs { display: flex; gap: 24px; justify-content: center; margin-bottom: 40px; border-bottom: 1px solid var(--border); }
+.auth-tab {
+  padding: 12px 0; cursor: pointer; font-size: 14px; font-weight: 500;
+  color: var(--muted); transition: all 0.2s; position: relative;
+}
+.auth-tab.active { color: var(--text); }
+.auth-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 1px; background: var(--text); }
+
+.form-group { margin-bottom: 28px; }
+label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+input, select, textarea {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 0;
+  border-left: none; border-right: none; border-top: none;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  outline: none;
+  transition: all 0.2s;
+}
+input:focus { border-bottom-color: var(--text); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 32px;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: all 0.3s;
+  border: 1px solid var(--text);
+}
+.btn-primary { background: var(--text); color: var(--bg); }
+.btn-primary:hover { background: transparent; color: var(--text); }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+.btn-ghost:hover { border-color: var(--text); }
+.btn-full { width: 100%; }
+.btn-sm { padding: 10px 20px; font-size: 11px; }
+
+/* ── Cards & Grid ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 48px;
+  margin-bottom: 64px; /* Increased margin for better separation */
+}
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 48px;
+}
+.card-title { font-family: var(--font-display); font-size: 32px; font-weight: 400; color: var(--text); }
+.card-sub { font-size: 15px; color: var(--muted); margin-top: 8px; font-style: italic; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  margin-bottom: 64px;
+}
+.stat-card {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 48px;
+}
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; }
+.stat-value { font-family: var(--font-display); font-size: 56px; color: var(--text); line-height: 1; }
+
+/* ── Performance Badges ── */
+.band {
+  display: inline-flex;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+}
+.band-critical { background: var(--surface); color: var(--critical); border-color: var(--critical); }
+.band-weak     { background: var(--surface); color: var(--weak); border-color: var(--weak); }
+.band-average  { background: var(--surface); color: var(--average); border-color: var(--average); }
+.band-strong   { background: var(--surface); color: var(--strong); border-color: var(--strong); }
+
+/* ── Lists ── */
+.topic-row {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 32px 0; /* More vertical spacing */
+  border-bottom: 1px solid var(--border);
+}
+.topic-row:last-child { border-bottom: none; }
+.topic-name { font-family: var(--font-display); font-size: 20px; color: var(--text); }
+.topic-subject { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.topic-score { font-family: var(--font-display); font-size: 28px; min-width: 100px; text-align: right; }
+
+.progress-bar { height: 1px; background: var(--border); margin-top: 24px; overflow: hidden; position: relative; }
+.progress-fill { height: 100%; background: var(--text); width: 0; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* ── Roadmap Specifics ── */
+.roadmap-item {
+  display: flex; gap: 24px; align-items: center; padding: 40px;
+  background: var(--surface); border: 1px solid var(--border); margin-bottom: 24px;
+}
+.rank-badge {
+  width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--text);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-size: 20px; font-weight: 500;
+}
+.rank-1 { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.roadmap-info { flex: 1; }
+.roadmap-name { font-family: var(--font-display); font-size: 24px; color: var(--text); }
+.roadmap-meta { display: flex; align-items: center; gap: 24px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+
+/* ── AI Tutor Chat ── */
+.chat-container { height: 500px; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--surface); }
+.chat-msgs { flex: 1; overflow-y: auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+.chat-msg { max-width: 80%; padding: 16px 24px; font-size: 15px; border: 1px solid var(--border); }
+.chat-msg.user { align-self: flex-end; background: var(--bg3); border-color: var(--border); }
+.chat-msg.ai { align-self: flex-start; background: var(--surface); }
+.chat-input-area { padding: 24px; border-top: 1px solid var(--border); display: flex; gap: 16px; }
+.chat-input { flex: 1; border-bottom: 1px solid var(--text); padding: 8px 0; outline: none; }
+
+/* ── AI Modules ── */
+.quiz-opt {
+  display: block; width: 100%; text-align: left;
+  border: 1px solid var(--border); padding: 32px; margin-bottom: 20px;
+  background: transparent; color: var(--text); font-size: 16px; cursor: pointer; transition: all 0.2s;
+}
+.quiz-opt:hover { border-color: var(--text); background: var(--bg3); }
+.quiz-opt.correct { background: var(--bg3); border-color: var(--strong); color: var(--strong); }
+.quiz-opt.wrong { background: var(--bg3); border-color: var(--critical); color: var(--critical); }
+
+.flashcard { width: 440px; height: 560px; perspective: 2000px; position: relative; cursor: pointer; }
+.fc-face {
+  position: absolute; inset: 0; backface-visibility: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 64px; border: 1px solid var(--border); background: var(--surface);
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d;
+}
+.fc-back { transform: rotateY(180deg); background: var(--bg3); }
+.flashcard.flipped .fc-front { transform: rotateY(180deg); }
+.flashcard.flipped .fc-back { transform: rotateY(360deg); }
+.fc-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 40px; }
+.fc-content { font-family: var(--font-display); font-size: 32px; color: var(--text); text-align: center; line-height: 1.4; }
+
+.advice-banner { 
+  background: var(--bg2); border: 1px solid var(--border); 
+  padding: 48px; margin-bottom: 64px; display: flex; gap: 32px; align-items: flex-start;
+  position: relative;
+}
+.advice-close {
+  position: absolute; top: 24px; right: 24px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--muted); font-size: 18px; transition: color 0.2s;
+}
+.advice-close:hover { color: var(--text); }
+.advice-icon { font-size: 32px; color: var(--accent); }
+.advice-text { font-family: var(--font-display); font-size: 18px; line-height: 1.6; color: var(--text); font-style: italic; }
+
+/* ── Feedback ── */
+.toast-container { position: fixed; top: 0; right: 0; padding: 24px; z-index: 10000; }
+.toast { background: var(--text); color: var(--bg); padding: 16px 32px; font-size: 14px; margin-bottom: 12px; }
+
+/* ── Manual Entry Table ── */
+.manual-table { width: 100%; border-collapse: collapse; margin-top: 32px; }
+.manual-table th { text-align: left; padding: 16px; font-size: 12px; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.manual-table td { padding: 16px; border-bottom: 1px solid var(--border); }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .sidebar { width: 0; display: none; }
+  .main { margin-left: 0; }
+  .topbar { padding: 0 24px; }
+  .content { padding: 40px 24px; }
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .premium-nav { padding: 0 32px; }
+  .command-center { padding: 0 24px; }
+}
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .page-title { font-size: 32px; }
+  .auth-card { width: 90%; padding: 40px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════ -->
+<div id="auth-screen" class="screen active">
+<div class="auth-wrap">
+  <div class="auth-bg"></div>
+  <div class="auth-card">
+    <div class="auth-logo">Lumina<span>AI</span></div>
+    <div class="auth-tagline">Adaptive learning intelligence for students</div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchTab('login')">Sign in</div>
+      <div class="auth-tab" onclick="switchTab('register')">Register</div>
+    </div>
+
+    <!-- Login form -->
+    <div id="login-form">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="handleLogin()" style="margin-bottom: 16px;">Sign in →</button>
+      <div style="text-align: center; margin-bottom: 16px; color: var(--muted); font-size: 11px; text-transform: uppercase;">or</div>
+      <div id="google-btn-login" style="display:flex; justify-content:center;"></div>
+    </div>
+
+    <!-- Register form -->
+    <div id="register-form" style="display:none">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="reg-name" placeholder="Your full name">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="reg-email" placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="reg-password" placeholder="••••••••">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Department</label>
+          <input type="text" id="reg-dept" placeholder="Computer Science">
+        </div>
+        <div class="form-group">
+          <label>Semester</label>
+          <select id="reg-sem">
+            <option value="1">Sem 1</option><option value="2">Sem 2</option>
+            <option value="3">Sem 3</option><option value="4" selected>Sem 4</option>
+            <option value="5">Sem 5</option><option value="6">Sem 6</option>
+            <option value="7">Sem 7</option><option value="8">Sem 8</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="handleRegister()" style="margin-bottom: 16px;">Create account →</button>
+      <div style="text-align: center; margin-bottom: 16px; color: var(--muted); font-size: 11px; text-transform: uppercase;">or</div>
+      <div id="google-btn-reg" style="display:flex; justify-content:center; margin-bottom: 24px;"></div>
+      
+      <!-- Teacher Mode Switch -->
+      <div style="text-align:center; margin-top:24px; border-top: 1px solid var(--border); padding-top:24px;">
+        <label>Are you a Teacher?</label>
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('teacher-login')">Teacher Portal Login</button>
+      </div>
+    </div>
+
+    <!-- Teacher Login form -->
+    <div id="teacher-login-form" style="display:none">
+      <div style="margin-bottom:24px;"><b>Teacher Portal</b><br><small>Sign in to monitor your students</small></div>
+      <div class="form-group">
+        <label>Teacher Email</label>
+        <input type="email" id="teacher-login-email" placeholder="teacher@school.edu">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="teacher-login-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="handleTeacherLogin()" style="margin-bottom: 16px;">Access Teacher Portal →</button>
+      <div style="text-align: center; margin-bottom: 16px; color: var(--muted); font-size: 13px;">
+         New teacher? <a href="#" onclick="switchTab('teacher-register'); return false;">Create an account</a>.
+      </div>
+      
+      <div style="text-align:center; margin-top:24px; border-top: 1px solid var(--border); padding-top:24px;">
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('login')">← Back to Student Login</button>
+      </div>
+    </div>
+
+    <!-- Teacher Register form -->
+    <div id="teacher-register-form" style="display:none">
+      <div style="margin-bottom:24px;"><b>Teacher Portal</b><br><small>Register a new educator account</small></div>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="teacher-reg-name" placeholder="Dr. Smith">
+      </div>
+      <div class="form-group">
+        <label>Teacher Email</label>
+        <input type="email" id="teacher-reg-email" placeholder="teacher@school.edu">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="teacher-reg-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="handleTeacherRegister()" style="margin-bottom: 16px;">Create Teacher Account →</button>
+      <div style="text-align: center; margin-bottom: 16px; color: var(--muted); font-size: 13px;">
+         Already registered? <a href="#" onclick="switchTab('teacher-login'); return false;">Sign in</a>.
+      </div>
+      
+      <div style="text-align:center; margin-top:24px; border-top: 1px solid var(--border); padding-top:24px;">
+        <button class="btn btn-ghost btn-sm" onclick="switchTab('login')">← Back to Student Login</button>
+      </div>
+    </div>
+
+    <div class="error-msg" id="auth-error"></div>
+  </div>
+</div>
+</div>
+<!-- ══════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════ -->
+<div id="app-screen" class="screen">
+  <div class="app">
+    <aside id="sidebar" class="sidebar" style="display: none;">
+    <div class="logo">
+      <div class="logo-mark">Lumina<span>AI</span></div>
+    </div>
+    
+    <nav class="nav">
+      <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('roadmap')" id="nav-roadmap">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        Subjects
+      </div>
+      <div class="nav-item" onclick="showPage('quiz')" id="nav-quiz">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/></svg>
+        Quiz
+      </div>
+      <div class="nav-item" onclick="showPage('flashcards')" id="nav-flashcards">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+        Flashcards
+      </div>
+      <div class="nav-item" onclick="showPage('tutor')" id="nav-tutor">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 11-7.6-12.7"/></svg>
+        Study Assistant
+      </div>
+      <div class="nav-item" onclick="showPage('upload')" id="nav-upload">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+        Upload
+      </div>
+      <div class="nav-item" onclick="showPage('teacher-dash')" id="nav-teacher-dash" style="display:none">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Class List
+      </div>
+      <div class="nav-item" onclick="showPage('profile')" id="nav-profile">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        My Profile
+      </div>
+    </nav>
+    
+    <footer class="sidebar-footer">
+      <div class="user-pill" onclick="showPage('profile')">
+        <div class="avatar" id="sidebar-initials">R</div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-name">Student</div>
+          <div class="user-dept" id="sidebar-dept">Department</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm btn-full" onclick="logout()">Sign out</button>
+    </footer>
+  </aside>
+
+  <main class="main">
+    <header class="topbar" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h1 class="page-title" id="topbar-title">Dashboard</h1>
+        <p id="topbar-sub" style="font-size:12px; color:var(--muted); margin-top:2px; font-style:italic;">Your learning landscape</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="toggleTheme()" style="display:flex; gap:8px; align-items:center; color:var(--text);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+      </button>
+    </header>
+
+    <!-- Dashboard -->
+    <div id="page-dashboard" class="content">
+      <div id="dash-stats" class="stats-grid">
+        <!-- JS fills -->
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 48px;">
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Performance Depth</div><div class="card-sub">Subject-wise scoring breakdown</div></div>
+          </div>
+          <canvas id="subject-chart" height="300"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Topic Spread</div><div class="card-sub">Understanding distribution</div></div>
+          </div>
+          <canvas id="dist-chart" height="300"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Weakest Topics</div><div class="card-sub">Priority areas for immediate focus</div></div>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('roadmap')">View All Subjects</button>
+        </div>
+        <div id="dash-weak-list">
+          <!-- JS fills -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Roadmap -->
+    <div id="page-roadmap" class="content" style="display:none">
+       <div id="ai-recommendations-banner">
+         <div class="advice-banner">
+           <div class="advice-icon">✨</div>
+           <div class="advice-text" id="ai-advice-text">Click the button to get personalized AI study advice based on your current performance.</div>
+           <button class="btn btn-primary" onclick="loadAIRecommendations()">Get AI Study Advice</button>
+         </div>
+       </div>
+       <div id="roadmap-list">
+         <!-- JS fills -->
+       </div>
+    </div>
+
+    <!-- Quiz -->
+    <div id="page-quiz" class="content" style="display:none">
+      
+      <!-- Quiz Setup -->
+      <div class="card" id="quiz-setup">
+        <div class="card-header">
+          <div><div class="card-title">Quiz Generator</div><div class="card-sub">Create a custom assessment session</div></div>
+        </div>
+        <div class="form-group">
+          <label>Topic or Subject</label>
+          <input type="text" id="quiz-topic" placeholder="e.g. Data Structures">
+        </div>
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="quiz-use-files" style="width:auto"> Prioritize uploaded study materials context
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Number of Questions</label>
+          <input type="number" id="quiz-count" value="5" min="1" max="15">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="startQuiz()">Generate Quiz with AI</button>
+      </div>
+
+      <!-- Quiz Execution Area -->
+      <div id="quiz-container" style="display:none;">
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div id="quiz-progress-text" style="font-size:14px; font-weight:600; color:var(--muted);">Question 1 of 5</div>
+          </div>
+          <div class="progress-bar" style="margin-bottom:32px;">
+            <div class="progress-fill" id="quiz-progress-fill" style="width: 0%;"></div>
+          </div>
+          <div id="quiz-question-area" style="margin-top:24px;">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Quiz Results Area -->
+      <div id="quiz-results" style="display:none;">
+        <div class="card" style="text-align:center;">
+          <h2 style="font-family:var(--font-display); font-size:32px; margin-bottom:8px;">Quiz Compete!</h2>
+          <div id="quiz-score-text" style="font-size:24px; color:var(--strong); font-weight:bold; margin-bottom:16px;"></div>
+          <div id="quiz-feedback" style="color:var(--muted); margin-bottom:32px;"></div>
+          <button class="btn btn-primary" onclick="resetQuiz()">Take Another Quiz</button>
+        </div>
+        <div class="card" style="margin-top: 24px;">
+           <h3 style="margin-bottom:24px; font-family:var(--font-display);">Review Answers</h3>
+           <div id="quiz-review-area" style="display:flex; flex-direction:column; gap:16px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flashcards -->
+    <div id="page-flashcards" class="content" style="display:none">
+      <div class="card" id="fc-setup">
+        <div class="card-header">
+          <div><div class="card-title">Flashcard Deck Creator</div><div class="card-sub">Master concepts through active recall</div></div>
+        </div>
+        <div class="form-group"><label>Focus Area</label><input type="text" id="fc-topic" placeholder="e.g. Operating Systems"></div>
+        <button id="fc-gen-btn" class="btn btn-primary btn-full" onclick="generateFlashcards()">Create Deck with AI</button>
+      </div>
+      
+      <div id="fc-loading" style="display:none; align-items:center; gap:12px; margin-top:24px; justify-content:center; color:var(--accent);">
+         <div class="spinner"></div> Generating Flashcards...
+      </div>
+
+      <div id="fc-display" style="display:none; flex-direction:column; align-items:center;">
+        <div id="fc-container" style="margin-bottom:40px; margin-top: 24px;">
+           <!-- Flashcard injected here -->
+        </div>
+        <div id="fc-controls" style="display:flex; gap:24px; align-items:center; margin-top:12px;">
+          <button class="btn btn-ghost" onclick="prevFlashcard()">← Previous</button>
+          <span id="fc-counter" style="font-size:14px; color:var(--text); font-weight:600;">1 / 5</span>
+          <button class="btn btn-ghost" onclick="nextFlashcard()">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Study Assistant -->
+    <div id="page-tutor" class="content" style="display:none">
+      <div class="card-header" style="margin-bottom:32px;">
+        <div><h2 class="card-title">Study Assistant</h2><p class="card-sub">Ask questions about your subjects or uploaded materials</p></div>
+        <button class="btn btn-ghost" onclick="document.getElementById('tutor-file-upload').click()">Upload Study Material</button>
+        <input type="file" id="tutor-file-upload" multiple hidden accept=".pdf,.png,.jpg,.jpeg" onchange="handleMaterialUpload(event)">
+      </div>
+      
+      <div id="uploaded-files-list" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 24px;"></div>
+
+      <div class="chat-container">
+        <div class="chat-msgs" id="chat-messages">
+          <div class="chat-msg ai">Hello! I'm your Study Assistant. How can I help you today?</div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" id="chat-input" class="chat-input" placeholder="Ask anything..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+          <button id="chat-send-btn" class="btn btn-primary btn-sm" onclick="sendChatMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Marks -->
+    <div id="page-upload" class="content" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Upload Materials</div><div class="card-sub">Import marks from PDF, Images, or CSV</div></div>
+        </div>
+        
+        <div class="drop-zone" id="drop-zone" ondragover="this.classList.add('drag'); event.preventDefault();" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+          <p style="margin-bottom: 24px;">Drag & drop your file here</p>
+          <button class="btn btn-ghost" onclick="document.getElementById('marks-file').click()">Select Document</button>
+          <input type="file" id="marks-file" hidden accept=".pdf,.png,.jpg,.jpeg,.csv" onchange="handleMarksFileSelect(event)">
+        </div>
+
+        <div id="ai-extract-loading" style="display:none; align-items:center; gap:12px; margin-top:24px; color:var(--accent);">
+          <div class="spinner"></div> AI is analyzing your document...
+        </div>
+
+        <div style="text-align:center; margin:48px 0; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:0.1em;">— Data Review —</div>
+
+        <table class="manual-table">
+          <thead>
+            <tr><th>Subject</th><th>Topic</th><th>Marks</th><th>Max</th><th>Date</th><th></th></tr>
+          </thead>
+          <tbody id="manual-body"></tbody>
+        </table>
+        
+        <div style="margin-top:40px; display:flex; gap:16px;">
+          <button class="btn btn-primary" onclick="submitManual()">Save to Database</button>
+          <button class="btn btn-ghost" onclick="addManualRow()">+ Add Row</button>
+          <button class="btn btn-ghost" onclick="clearManual()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Page -->
+    <div id="page-profile" class="content" style="display:none">
+      <div class="card" style="max-width:600px;">
+        <div class="card-header">
+          <div><div class="card-title">Profile Settings</div><div class="card-sub">Manage your account details</div></div>
+        </div>
+        
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="prof-name">
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="prof-email" readonly style="color:var(--muted); cursor:not-allowed; opacity:0.7;">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Department / Course</label>
+            <input type="text" id="prof-dept">
+          </div>
+          <div class="form-group">
+            <label>Semester</label>
+            <select id="prof-sem">
+              <option value="1">Semester 1</option><option value="2">Semester 2</option>
+              <option value="3">Semester 3</option><option value="4">Semester 4</option>
+              <option value="5">Semester 5</option><option value="6">Semester 6</option>
+              <option value="7">Semester 7</option><option value="8">Semester 8</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Update Password</label>
+            <input type="password" id="prof-pass" placeholder="Leave blank to keep current password">
+          </div>
+          <div class="form-group">
+            <label>Linked Teacher Email</label>
+            <input type="email" id="prof-teacher-email" placeholder="teacher@school.edu">
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveProfile()" style="margin-bottom:32px;">Save Changes</button>
+
+        <div style="border-top:1px solid var(--border); padding-top:32px; margin-top:32px;">
+          <h3 style="margin-bottom:16px; font-size:18px;">System Diagnostics</h3>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:24px;">Verify your teacher connection and email settings.</p>
+          
+          <div style="background:var(--bg3); border:1px solid var(--border); border-radius:var(--r); padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <span style="font-size:14px; color:var(--text);">Teacher Connection:</span>
+              <span id="diag-teacher-status" style="font-size:14px; font-weight:600;">Checking...</span>
+            </div>
+            <button class="btn btn-ghost btn-sm btn-full" onclick="sendTestEmail()" id="btn-test-email">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right:8px;"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg> Send Test Diagnostic Email
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher Dashboard Page -->
+    <div id="page-teacher-dash" class="content" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Teacher Dashboard</div><div class="card-sub">Monitor your students' adaptive learning progress</div></div>
+        </div>
+        <div id="teacher-students-list">
+           <!-- Rendered via JS -->
+           <div class="empty">Loading your students...</div>
+        </div>
+      </div>
+    </div>
+    
+  </main>
+</div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// ── API Config ────────────────────────────────────────────────────────────────
+// Auto-detects whether the frontend is being served by the Node server (same
+// origin) or opened via Live Server / file:// (needs absolute URL).
+// Supports local dev, Railway, Render, and custom FRONTEND_URL deployments.
+const _port = window.location.port;
+const _host = window.location.hostname;
+const _servedByBackend = (_port === '8000') || (_port === '') ||
+  _host.includes('railway.app') || _host.includes('render.com') ||
+  _host.includes('onrender.com') || _host.includes('vercel.app');
+
+const API_BASE = _servedByBackend ? '' : 'http://localhost:8000';
+// BASE_URL is an alias so all fetch calls work identically
+const BASE_URL = API_BASE;
+let chatHistory = [];
+let uploadedFiles = []; // Store {name, type, fileObj, blobUrl, base64}
+let activeFileIndex = -1;
+let lastSentFileIndex = -1;
+let currentPdf = null;
+let pdfCurrentPage = 1;
+
+async function callGemini(prompt, filesData = [], history = [], systemInstruction = null) {
+  const response = await fetch(`${API_BASE}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: prompt,
+      history: history,
+      files: filesData,
+      systemInstruction: systemInstruction
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || data.status === 'error') {
+    throw new Error(data.message || `API Error ${response.status}`);
+  }
+
+  return data.reply;
+}
+
+// ── Database Mock (LocalStorage) ──────────────────────────────────────────────
+async function getStudentsFromAPI() {
+  const res = await fetch(`${API_BASE}/students`);
+  const data = await res.json();
+  return data;
+}
+
+function saveDB(table, data) {
+  localStorage.setItem(`studyiq_${table}`, JSON.stringify(data));
+}
+function generateId() { return Math.random().toString(36).substr(2, 9); }
+
+// Initialize tables if empty
+if (!localStorage.getItem('studyiq_users')) saveDB('users', []);
+if (!localStorage.getItem('studyiq_marks')) saveDB('marks', []);
+
+let currentUser = null;
+let subjectChart = null;
+let distChart = null;
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const container = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = msg;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 600);
+  }, 4000);
+}
+
+function bandHTML(band) {
+  return `<span class="band band-${band}">${band}</span>`;
+}
+
+function scoreColor(pct) {
+  if (pct < 40) return 'var(--critical)';
+  if (pct < 60) return 'var(--weak)';
+  if (pct < 75) return 'var(--average)';
+  return 'var(--strong)';
+}
+
+// ── Auth & Profile ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (tab==='login'?i===0:i===1)));
+  document.getElementById('login-form').style.display    = tab === 'login' ? '' : 'none';
+  document.getElementById('register-form').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('teacher-login-form').style.display = tab === 'teacher-login' ? '' : 'none';
+  document.getElementById('teacher-register-form').style.display = tab === 'teacher-register' ? '' : 'none';
+  
+  // Unhighlight main tabs if switching to teacher
+  if(tab === 'teacher-login' || tab === 'teacher-register') {
+     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  }
+  
+  document.getElementById('auth-error').textContent = '';
+}
+
+async function handleTeacherRegister() {
+  const name = document.getElementById('teacher-reg-name').value.trim();
+  const email = document.getElementById('teacher-reg-email').value.trim();
+  const pass = document.getElementById('teacher-reg-password').value;
+
+  if (!name || !email || !pass) return toast('Fill all fields', 'error');
+
+  try {
+    const res = await fetch(`${API_BASE}/api/teacher/register`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) { document.getElementById('auth-error').textContent = data.error || 'Registration failed'; return; }
+    
+    toast('Educator account created! Please log in.', 'success');
+    document.getElementById('teacher-login-email').value = email;
+    document.getElementById('teacher-login-password').value = '';
+    switchTab('teacher-login');
+  } catch (e) {
+    document.getElementById('auth-error').textContent = 'Server connection failed.';
+  }
+}
+
+async function handleTeacherLogin() {
+  const email = document.getElementById('teacher-login-email').value.trim();
+  const pass  = document.getElementById('teacher-login-password').value;
+  try {
+    const res = await fetch(`${API_BASE}/api/teacher/login`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) { document.getElementById('auth-error').textContent = data.error || 'Login failed'; return; }
+    
+    currentUser = data;
+    saveDB('currentUser', data);
+    toast(`Welcome, ${data.name}`);
+    bootApp();
+  } catch(e) {
+    document.getElementById('auth-error').textContent = 'Could not reach Server.';
+  }
+}
+
+async function loadTeacherDashboard() {
+  try {
+    const res = await fetch(`${API_BASE}/api/teacher/${currentUser.email}/students`);
+    const students = await res.json();
+    if(students.length === 0) {
+      document.getElementById('teacher-students-list').innerHTML = `<div class="empty">No students have linked your email yet.</div>`;
+      return;
+    }
+    
+    let html = `<table class="manual-table"><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Action</th></tr></thead><tbody>`;
+    students.forEach(s => {
+      html += `<tr>
+        <td><strong>${s.name}</strong></td>
+        <td>${s.email}</td>
+        <td>${s.department}</td>
+        <td><button class="btn btn-ghost btn-sm" onclick="viewStudent(${s.student_id}, '${s.name.replace(/'/g, "\\'")}')">View Progress</button></td>
+      </tr>`;
+    });
+    html += `</tbody></table>`;
+    document.getElementById('teacher-students-list').innerHTML = html;
+  } catch(e) {
+     document.getElementById('teacher-students-list').innerHTML = `<div class="empty" style="color:var(--critical)">Error loading students</div>`;
+  }
+}
+
+async function viewStudent(studentId, name) {
+   // Temporarily override dashboard views
+   let origUser = JSON.parse(JSON.stringify(currentUser));
+   currentUser = { student_id: studentId, name: name };
+   await loadAnalysis();
+   showPage('dashboard');
+   document.getElementById('topbar-title').textContent = `${name}'s Dashboard`;
+   
+   // Create back button
+   const oldBtn = document.getElementById('btn-send-report');
+   if(oldBtn) {
+     oldBtn.style.display = 'block';
+     oldBtn.innerHTML = '← Back to Class List';
+     oldBtn.onclick = () => {
+        currentUser = origUser;
+        showPage('teacher-dash');
+     };
+   }
+}
+
+async function handleRegister() {
+  const name = document.getElementById("reg-name").value;
+  const email = document.getElementById("reg-email").value;
+  const password = document.getElementById("reg-password").value;
+  const department = document.getElementById("reg-dept").value;
+  const semester = document.getElementById("reg-sem").value;
+
+  try {
+    const res = await fetch(`${BASE_URL}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        department,
+        semester
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Registration failed");
+      return;
+    }
+
+    alert("Registered successfully ✅");
+    switchTab("login");
+
+  } catch (err) {
+    console.error(err);
+    alert("Cannot connect to the server. Make sure the backend is running on port 8000.");
+  }
+}
+
+async function handleLogin() {
+  const email = document.getElementById("login-email").value;
+  const password = document.getElementById("login-password").value;
+
+  try {
+    const res = await fetch(`${BASE_URL}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email,
+        password
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('auth-error').textContent = data.error || "Login failed";
+      return;
+    }
+
+    // Save user with consistent key & set global
+    currentUser = data;
+    saveDB('currentUser', data);
+
+    toast(`Welcome back, ${data.name}!`);
+    bootApp();
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById('auth-error').textContent = "Cannot connect to the server. Make sure the backend is running on port 8000.";
+  }
+}
+
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('studyiq_current_user');
+  // Reset all screen visibility (covers both classList and style.display methods)
+  document.getElementById('auth-screen').classList.add('active');
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('app-screen').style.display = '';
+  document.getElementById('sidebar').style.display = 'none';
+  // Destroy charts to free memory
+  if (subjectChart) { subjectChart.destroy(); subjectChart = null; }
+  if (distChart)    { distChart.destroy();    distChart = null; }
+  // Clear fields
+  const loginEmail = document.getElementById('login-email');
+  const loginPass  = document.getElementById('login-password');
+  if (loginEmail) loginEmail.value = '';
+  if (loginPass)  loginPass.value  = '';
+  document.getElementById('auth-error').textContent = '';
+  switchTab('login');
+}
+
+function bootApp() {
+  document.getElementById('auth-screen').classList.remove('active');
+  document.getElementById('app-screen').style.display = 'flex';
+  document.getElementById('sidebar').style.display = 'flex';
+  
+  if(currentUser.role === 'teacher') {
+    // Hide student specific nav items
+    document.getElementById('nav-quiz').style.display = 'none';
+    document.getElementById('nav-flashcards').style.display = 'none';
+    document.getElementById('nav-tutor').style.display = 'none';
+    document.getElementById('nav-upload').style.display = 'none';
+    document.getElementById('nav-roadmap').style.display = 'none';
+    document.getElementById('nav-dashboard').style.display = 'none';
+    
+    // Show teacher specific nav items
+    document.getElementById('nav-teacher-dash').style.display = 'flex';
+    document.getElementById('nav-profile').style.display = 'flex';
+    
+    document.getElementById('sidebar-name').textContent = currentUser.name;
+    document.getElementById('sidebar-dept').textContent = 'Instructor';
+    const initials = currentUser.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    document.getElementById('sidebar-initials').textContent = initials;
+    
+    showPage('teacher-dash');
+  } else {
+    // Show student nav items again
+    document.getElementById('nav-quiz').style.display = 'flex';
+    document.getElementById('nav-flashcards').style.display = 'flex';
+    document.getElementById('nav-tutor').style.display = 'flex';
+    document.getElementById('nav-upload').style.display = 'flex';
+    document.getElementById('nav-roadmap').style.display = 'flex';
+    document.getElementById('nav-dashboard').style.display = 'flex';
+    
+    // Hide teacher items
+    document.getElementById('nav-teacher-dash').style.display = 'none';
+    
+    if(currentUser.teacher_email) {
+      document.getElementById('btn-send-report').style.display = 'flex';
+    } else {
+      document.getElementById('btn-send-report').style.display = 'none';
+    }
+    
+    updateUserDetails();
+    updateDiagStatus();
+    populateProfileForm(); // Prepare profile form for students
+    showPage('dashboard');
+    loadAnalysis(); // Load charts & stats immediately after login
+  }
+}
+
+// Navigation — single authoritative showPage (merges both definitions)
+
+function updateUserDetails() {
+  document.getElementById('sidebar-name').textContent = currentUser.name;
+  document.getElementById('sidebar-dept').textContent = currentUser.department;
+  const initials = currentUser.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('sidebar-initials').textContent = initials;
+}
+
+function populateProfileForm() {
+  const isTeacher = (currentUser && currentUser.role === 'teacher');
+  
+  // Update labels if needed
+  const deptLabel = document.querySelector('label[for="prof-dept"]') || {textContent:''};
+  if(isTeacher) deptLabel.textContent = "Specialization / Department";
+  else deptLabel.textContent = "Department / Course";
+
+  document.getElementById('prof-name').value = currentUser.name || '';
+  document.getElementById('prof-email').value = currentUser.email || '';
+  document.getElementById('prof-dept').value = (isTeacher ? currentUser.department : currentUser.department) || '';
+  
+  // Hide/Show role-specific fields
+  const semGroup = document.getElementById('prof-sem').closest('.form-group');
+  const teacherEmailGroup = document.getElementById('prof-teacher-email').closest('.form-group');
+  
+  if(isTeacher) {
+    if(semGroup) semGroup.style.display = 'none';
+    if(teacherEmailGroup) teacherEmailGroup.style.display = 'none';
+  } else {
+    if(semGroup) semGroup.style.display = 'block';
+    if(teacherEmailGroup) teacherEmailGroup.style.display = 'block';
+    document.getElementById('prof-sem').value = currentUser.semester || 1;
+    document.getElementById('prof-teacher-email').value = currentUser.teacher_email || '';
+  }
+  
+  document.getElementById('prof-pass').value = '';
+}
+
+async function saveProfile() {
+  const isTeacher = (currentUser && currentUser.role === 'teacher');
+  const newName = document.getElementById('prof-name').value.trim();
+  const newDept  = document.getElementById('prof-dept').value.trim();
+  const newPass  = document.getElementById('prof-pass').value;
+
+  if (!newName) return toast('Name is required', 'error');
+
+  try {
+    toast('Saving changes...');
+    let res;
+    if (isTeacher) {
+      res = await fetch(`${API_BASE}/api/teacher/profile/${currentUser.teacher_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, email: currentUser.email, department: newDept, password: newPass })
+      });
+    } else {
+      const newSem  = parseInt(document.getElementById('prof-sem').value);
+      const tEmail  = document.getElementById('prof-teacher-email').value.trim();
+      res = await fetch(`${API_BASE}/students/${currentUser.student_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, email: currentUser.email, department: newDept, semester: newSem, teacher_email: tEmail, password: newPass })
+      });
+      // Synchronize student-specific fields
+      currentUser.semester = newSem;
+      currentUser.teacher_email = tEmail;
+    }
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Update failed');
+    
+    // Synchronize common fields
+    currentUser.name = newName;
+    currentUser.department = newDept;
+    
+    localStorage.setItem('studyiq_current_user', JSON.stringify(currentUser));
+    updateUserDetails(); 
+    updateDiagStatus();
+    toast('Profile updated successfully!', 'success');
+  } catch (err) {
+    console.error("Save error:", err);
+    toast('Update failed: ' + err.message, 'error');
+  }
+}
+
+// ── Email Progress ────────────────────────────────────────────────────────────
+async function sendQuizReport() {
+  if (!currentUser.teacher_email) {
+    console.warn("No teacher email linked. Skipping report dispatch.");
+    toast('No teacher email linked in your profile. Report skiped.', 'info');
+    return;
+  }
+
+  const quizTopicInput = document.getElementById('quiz-topic');
+  const quizTopic = (quizTopicInput ? quizTopicInput.value.trim() : 'AI Generated Quiz') || 'AI Generated Quiz';
+  const quizQuestions = quizUserAnswers.map((ans, i) => ({
+    question: ans.question,
+    selected: ans.selected,
+    correct: ans.correct,
+    selectedText: currentQuiz[i].options[ans.selected],
+    correctText: currentQuiz[i].options[ans.correct],
+    explanation: ans.explanation
+  }));
+
+  try {
+    toast('Dispatching quiz results to your teacher...');
+    const res = await fetch(`${API_BASE}/api/send-report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentName: currentUser.name,
+        teacherEmail: currentUser.teacher_email,
+        reportType: 'quiz',
+        quizTopic: quizTopic,
+        quizScore: quizScore,
+        quizTotal: currentQuiz.length,
+        quizQuestions: quizQuestions
+      })
+    });
+    
+    if (res.ok) {
+      toast('Quiz report sent successfully!', 'success');
+      const data = await res.json();
+      if(data.url) console.log("Email Preview:", data.url);
+    } else {
+      const errData = await res.json();
+      toast('Dispatch failed: ' + (errData.error || 'Server error'), 'error');
+    }
+  } catch (err) {
+    console.error("Quiz dispatch error:", err);
+    toast('Connection error while sending report', 'error');
+  }
+}
+
+async function sendTestEmail() {
+  if (!currentUser.teacher_email) return toast('No teacher email linked!', 'error');
+  
+  const btn = document.getElementById('btn-test-email');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/send-report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        studentName: currentUser.name,
+        teacherEmail: currentUser.teacher_email,
+        reportType: 'dashboard', // Send a standard dashboard report as a test
+        stats: { overall_avg: 'TEST', strong_count: 0, critical_count: 0 },
+        weakTopics: []
+      })
+    });
+    
+    if (res.ok) {
+      toast('Diagnostic email sent successfully! Check inbox or terminal.', 'success');
+    } else {
+      const err = await res.json();
+      toast('Email Failed: ' + (err.error || 'Unknown error'), 'error');
+    }
+  } catch (err) {
+    toast('Could not connect to server', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Test Diagnostic Email';
+  }
+}
+
+function updateDiagStatus() {
+  const el = document.getElementById('diag-teacher-status');
+  if(!el) return;
+  if (currentUser.teacher_email) {
+    el.textContent = 'Connected (' + currentUser.teacher_email + ')';
+    el.style.color = 'var(--strong)';
+  } else {
+    el.textContent = 'Not Linked';
+    el.style.color = 'var(--critical)';
+  }
+}
+
+async function sendProgressReport() {
+  if(!currentUser.teacher_email) return toast('No Teacher Email linked!', 'error');
+  
+  const btn = document.getElementById('btn-send-report');
+  const ogHtml = btn.innerHTML;
+  btn.innerHTML = `<div class="spinner" style="width:14px;height:14px;border-width:2px;margin-right:6px;"></div> Sending...`;
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/send-report`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        studentName: currentUser.name,
+        teacherEmail: currentUser.teacher_email,
+        stats: window._currentExportStats || {},
+        weakTopics: window._currentExportWeakTopics || [],
+        scoresHTML: '' 
+      })
+    });
+    const data = await res.json();
+    if(res.ok) {
+       toast('Report sent successfully!');
+       console.log("Email Preview URL:", data.url);
+    } else {
+       toast(data.error || 'Failed to send report.', 'error');
+    }
+  } catch(e) {
+    toast('Server error during email sending.', 'error');
+  }
+  btn.innerHTML = ogHtml;
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(page) {
+  const meta = { 
+    dashboard:    { title: 'Dashboard',        sub: 'Your learning progress at a glance' }, 
+    roadmap:      { title: 'Subjects',         sub: 'Calculated based on your weakest topics' }, 
+    quiz:         { title: 'AI Quiz Generator',sub: 'Generate custom assessments on any topic' },
+    flashcards:   { title: 'AI Flashcards',    sub: 'Master your subjects through active recall' },
+    tutor:        { title: 'Study Assistant',  sub: 'Ask questions about your subjects or materials' }, 
+    upload:       { title: 'Upload Materials', sub: 'Import marks from PDF, Images, or CSV' }, 
+    profile:      { title: 'Profile Settings', sub: 'Manage your student information' },
+    'teacher-dash':{ title: 'Teacher Dashboard', sub: 'Monitor your students\' adaptive learning progress' }
+  };
+  
+  document.querySelectorAll('.content').forEach(c => c.style.display = 'none');
+  const pageEl = document.getElementById('page-' + page);
+  if (pageEl) pageEl.style.display = 'block';
+  
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navItem = document.getElementById('nav-' + page);
+  if (navItem) navItem.classList.add('active');
+  
+  const m = meta[page];
+  if (m) {
+    document.getElementById('topbar-title').textContent = m.title;
+    document.getElementById('topbar-sub').textContent   = m.sub;
+  }
+  
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  
+  if (page === 'dashboard')    loadAnalysis();
+  if (page === 'roadmap')      loadRoadmap();
+  if (page === 'profile')      populateProfileForm();
+  if (page === 'teacher-dash') loadTeacherDashboard();
+}
+
+// ── Smart recommendations ─────────────────────────────────────────────────────
+async function loadAIRecommendations() {
+  const banner = document.getElementById('ai-recommendations-banner');
+  banner.innerHTML = '<div class="advice-banner"><div class="loading"><div class="spinner"></div> Analying performance to get AI advice...</div></div>';
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/recommendations/${currentUser.student_id}`);
+    const data = await res.json();
+    
+    if (data.status === 'success') {
+      banner.innerHTML = `
+        <div class="advice-banner">
+          <button class="advice-close" onclick="closeAIAdvice()" title="Dismiss AI Advice">✕</button>
+          <div class="advice-icon">✨</div>
+          <div class="advice-text">
+            <strong>AI Study Strategy:</strong><br>
+            ${data.advice.replace(/\n/g, '<br>')}
+          </div>
+        </div>
+      `;
+    } else {
+      showAdviceError(banner);
+    }
+  } catch (err) {
+    console.error(err);
+    showAdviceError(banner);
+  }
+}
+
+function showAdviceError(banner) {
+  banner.innerHTML = `
+    <div class="advice-banner" style="border-color:var(--critical); background:var(--bg3);">
+      <div class="advice-icon" style="color:var(--critical);">⚠️</div>
+      <div class="advice-text">
+        <strong>Error:</strong> Could not load personalized AI advice. Ensure your server is running.<br>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px;" onclick="loadAIRecommendations()">Retry Call</button>
+      </div>
+      <button class="advice-close" onclick="closeAIAdvice()">✕</button>
+    </div>
+  `;
+}
+
+function closeAIAdvice() {
+  const banner = document.getElementById('ai-recommendations-banner');
+  banner.innerHTML = `
+    <div class="advice-banner">
+      <div class="advice-icon">✨</div>
+      <div class="advice-text" id="ai-advice-text">Click the button to get personalized AI study advice based on your current performance.</div>
+      <button class="btn btn-primary" onclick="loadAIRecommendations()">Get AI Study Advice</button>
+    </div>
+  `;
+}
+
+// ── AI Quiz Logic ─────────────────────────────────────────────────────────────
+let currentQuiz = [];
+let quizIdx = 0;
+let quizScore = 0;
+let quizUserAnswers = [];
+
+async function startQuiz() {
+  const topic = document.getElementById('quiz-topic').value.trim();
+  const useFiles = document.getElementById('quiz-use-files').checked;
+  
+  if (!topic && !useFiles) return toast('Please enter a topic or select "Use study materials"', 'error');
+  
+  const btn = document.querySelector('#quiz-setup .btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px"></div> Generating Quiz...';
+
+  try {
+    let filesData = [];
+    if (useFiles && uploadedFiles.length > 0) {
+      for (const f of uploadedFiles) {
+        filesData.push(await getBase64ForFile(f));
+      }
+    }
+
+    const res = await fetch(`${API_BASE}/api/generate-quiz`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic, files: filesData, count: parseInt(document.getElementById('quiz-count').value) || 5 })
+    });
+    
+    const data = await res.json();
+    if (!res.ok || data.status !== 'success') throw new Error(data.error || 'Failed to generate quiz');
+
+    currentQuiz = data.quiz;
+    quizIdx = 0;
+    quizScore = 0;
+    quizUserAnswers = [];
+    
+    document.getElementById('quiz-setup').style.display = 'none';
+    document.getElementById('quiz-results').style.display = 'none';
+    document.getElementById('quiz-container').style.display = 'block';
+    
+    renderQuizQuestion();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate & Start Quiz';
+  }
+}
+
+function renderQuizQuestion() {
+  const q = currentQuiz[quizIdx];
+  const total = currentQuiz.length;
+  const pct = ((quizIdx) / total) * 100;
+  
+  document.getElementById('quiz-progress-text').textContent = `Question ${quizIdx + 1} of ${total}`;
+  document.getElementById('quiz-progress-fill').style.width = pct + '%';
+  
+  const area = document.getElementById('quiz-question-area');
+  area.innerHTML = `
+    <h3 style="margin-bottom:20px; line-height:1.4;">${q.question}</h3>
+    <div id="quiz-options">
+      ${q.options.map((opt, i) => `
+        <button class="quiz-opt" onclick="handleQuizAnswer(${i})">${opt}</button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function handleQuizAnswer(idx) {
+  const q = currentQuiz[quizIdx];
+  const opts = document.querySelectorAll('.quiz-opt');
+  
+  // Disable all
+  opts.forEach(o => o.style.pointerEvents = 'none');
+  
+  const isCorrect = idx === q.correct_index;
+  if (isCorrect) {
+    quizScore++;
+    opts[idx].classList.add('correct');
+  } else {
+    opts[idx].classList.add('wrong');
+    opts[q.correct_index].classList.add('correct');
+  }
+  
+  quizUserAnswers.push({ question: q.question, selected: idx, correct: q.correct_index, explanation: q.explanation });
+
+  setTimeout(() => {
+    quizIdx++;
+    if (quizIdx < currentQuiz.length) {
+      renderQuizQuestion();
+    } else {
+      showQuizResults();
+    }
+  }, 1500);
+}
+
+function showQuizResults() {
+  document.getElementById('quiz-container').style.display = 'none';
+  document.getElementById('quiz-results').style.display = 'block';
+  
+  const total = currentQuiz.length;
+  document.getElementById('quiz-score-text').textContent = `You scored ${quizScore} / ${total}!`;
+  
+  const pct = (quizScore / total) * 100;
+  let feedback = "Keep studying! You're getting there.";
+  if (pct >= 80) feedback = "Excellent! You've mastered this topic.";
+  else if (pct >= 60) feedback = "Good job! A little more review and you'll be perfect.";
+  
+  document.getElementById('quiz-feedback').textContent = feedback;
+  
+  // Automatically send quiz report to teacher if linked
+  if(currentUser.teacher_email) {
+    sendQuizReport();
+  }
+  
+  const reviewArea = document.getElementById('quiz-review-area');
+  reviewArea.innerHTML = quizUserAnswers.map((ans, i) => `
+    <div class="review-card ${ans.selected === ans.correct ? 'correct' : 'wrong'}">
+      <div style="font-weight:600; margin-bottom:8px;">${i+1}. ${ans.question}</div>
+      <div style="font-size:13px; color:var(--muted); margin-bottom:4px;">
+        Your answer: <span style="color:${ans.selected === ans.correct ? 'var(--strong)' : 'var(--critical)'}">${currentQuiz[i].options[ans.selected]}</span>
+      </div>
+      ${ans.selected !== ans.correct ? `<div style="font-size:13px; color:var(--strong); margin-bottom:4px;">Correct answer: ${currentQuiz[i].options[ans.correct]}</div>` : ''}
+      <div style="font-size:12px; font-style:italic; border-top:1px solid var(--border); padding-top:8px; margin-top:8px;">${ans.explanation}</div>
+    </div>
+  `).join('');
+}
+
+function resetQuiz() {
+  document.getElementById('quiz-results').style.display = 'none';
+  document.getElementById('quiz-setup').style.display = 'block';
+  document.getElementById('quiz-topic').value = '';
+}
+
+// ── AI Flashcards Logic ───────────────────────────────────────────────────────
+let currentFlashcards = [];
+let fcIdx = 0;
+
+async function generateFlashcards() {
+  const topic = document.getElementById('fc-topic').value.trim();
+  if (!topic) return toast('Enter a topic for flashcards', 'error');
+  
+  const btn = document.getElementById('fc-gen-btn');
+  btn.disabled = true;
+  document.getElementById('fc-loading').style.display = 'flex';
+  document.getElementById('fc-container').style.display = 'none';
+  document.getElementById('fc-controls').style.display = 'none';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/generate-flashcards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic })
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== 'success') throw new Error(data.error || 'Failed to generate flashcards');
+
+    currentFlashcards = data.flashcards;
+    fcIdx = 0;
+    
+    document.getElementById('fc-display').style.display = 'flex';
+    document.getElementById('fc-setup').style.display = 'none';
+    document.getElementById('fc-container').style.display = 'block';
+    document.getElementById('fc-controls').style.display = 'flex';
+    
+    renderFlashcard();
+  } catch (err) {
+    toast(err.message, 'error');
+    document.getElementById('fc-setup').style.display = 'block';
+  } finally {
+    document.getElementById('fc-loading').style.display = 'none';
+    btn.disabled = false;
+  }
+}
+
+function renderFlashcard() {
+  const card = currentFlashcards[fcIdx];
+  const container = document.getElementById('fc-container');
+  
+  container.innerHTML = `
+    <div class="flashcard" onclick="this.classList.toggle('flipped')">
+        <div class="fc-face fc-front">
+            <div class="fc-label">Question</div>
+            <div class="fc-content">${card.question}</div>
+            <div style="margin-top:40px; font-size:12px; color:var(--muted);">Click to flip</div>
+        </div>
+        <div class="fc-face fc-back">
+            <div class="fc-label">Answer</div>
+            <div class="fc-content">${card.answer}</div>
+            <div style="margin-top:40px; font-size:12px; color:var(--muted);">Click to flip back</div>
+        </div>
+    </div>
+  `;
+  
+  document.getElementById('fc-counter').textContent = `${fcIdx + 1} / ${currentFlashcards.length}`;
+}
+
+function nextFlashcard() {
+  if (fcIdx < currentFlashcards.length - 1) {
+    fcIdx++;
+    renderFlashcard();
+  }
+}
+function prevFlashcard() {
+  if (fcIdx > 0) {
+    fcIdx--;
+    renderFlashcard();
+  }
+}
+
+// ── Analytics Engine — builds from /performance API data ─────────────────────
+// The view returns rows: [student_id, student_name, subject_name, topic_id,
+//   topic_name, weightage, marks_obtained, max_marks, score_pct, exam_date, performance_band]
+// Column indices:          0              1             2            3
+//                          4              5             6            7
+//                          8              9              10
+function buildAnalysisFromRows(rows) {
+  let hiddenTopics = JSON.parse(localStorage.getItem('hiddenRoadmapTopics') || '[]');
+  // Filter to only current student's rows and exclude hidden roadmap topics
+  const myRows = rows.filter(r => r.student_id === currentUser.student_id && !hiddenTopics.includes(r.topic_name));
+
+  let stats = { total_topics: 0, critical_count: 0, weak_count: 0, average_count: 0, strong_count: 0, overall_avg: 0 };
+  let topicsMap   = {};
+  let subjectsMap = {};
+
+  myRows.forEach(r => {
+    const subjectName = r.subject_name;
+    const topicName   = r.topic_name;
+    const obtained    = Number(r.marks_obtained);
+    const max         = Number(r.max_marks);
+    const pct         = Number(r.score_pct);
+    const band        = r.performance_band;
+
+    // Aggregate per subject
+    if (!subjectsMap[subjectName]) subjectsMap[subjectName] = { totalObtained: 0, totalMax: 0 };
+    subjectsMap[subjectName].totalObtained += obtained;
+    subjectsMap[subjectName].totalMax      += max;
+
+    // Keep latest entry per topic (rows already ordered by latest exam_date via the view)
+    const tKey = subjectName + '_' + topicName;
+    if (!topicsMap[tKey]) {
+      topicsMap[tKey] = { subject_name: subjectName, topic_name: topicName, score_pct: pct, performance_band: band };
+      stats.total_topics++;
+      if (band === 'critical') stats.critical_count++;
+      else if (band === 'weak')     stats.weak_count++;
+      else if (band === 'average')  stats.average_count++;
+      else                          stats.strong_count++;
+    }
+  });
+
+  const subjects = Object.keys(subjectsMap).map(k => {
+    const s = subjectsMap[k];
+    return { subject_name: k, avg_pct: s.totalMax > 0 ? Math.round((s.totalObtained / s.totalMax) * 100) : 0 };
+  });
+
+  const topics = Object.values(topicsMap);
+  const weak_topics = topics.filter(t => t.score_pct < 60).sort((a,b) => a.score_pct - b.score_pct);
+
+  const totalObt = myRows.reduce((s,r) => s + Number(r.marks_obtained), 0);
+  const totalMax = myRows.reduce((s,r) => s + Number(r.max_marks), 0);
+  stats.overall_avg = totalMax > 0 ? Math.round((totalObt / totalMax) * 100) : 0;
+
+  return { stats, subjects, weak_topics, all_topics: topics };
+}
+
+async function loadAnalysis() {
+  document.getElementById('dash-stats').innerHTML = '<div class="loading" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>';
+  try {
+    const res  = await fetch(`${API_BASE}/performance`);
+    const rows = await res.json();
+    const data = buildAnalysisFromRows(rows);
+    renderDashboard(data);
+  } catch (err) {
+    console.error("loadAnalysis error:", err);
+    document.getElementById('dash-stats').innerHTML =
+      `<div class="empty" style="grid-column:1/-1;color:var(--critical)">
+        Could not reach backend. Make sure the Node.js server is running.
+       </div>`;
+  }
+}
+
+
+function renderDashboard(data) {
+  const { stats, subjects, weak_topics } = data;
+
+  if (stats.total_topics === 0) {
+    document.getElementById('dash-stats').innerHTML = `<div class="empty" style="grid-column: 1/-1;">No data yet. Upload your marks to see analytics.</div>`;
+    document.getElementById('dash-weak-list').innerHTML = '';
+    if(subjectChart) subjectChart.destroy();
+    if(distChart) distChart.destroy();
+    return;
+  }
+  
+  // Store globally so the report button can access them
+  window._currentExportStats = stats;
+  window._currentExportWeakTopics = weak_topics;
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Average Score</div><div class="stat-value">${stats.overall_avg}%</div></div>
+    <div class="stat-card"><div class="stat-label">Critical Areas</div><div class="stat-value">${stats.critical_count}</div></div>
+    <div class="stat-card"><div class="stat-label">Weak Topics</div><div class="stat-value">${stats.weak_count}</div></div>
+    <div class="stat-card"><div class="stat-label">Strong Suites</div><div class="stat-value">${stats.strong_count}</div></div>
+  `;
+
+  // Subject bar chart
+  const subCtx = document.getElementById('subject-chart').getContext('2d');
+  if (subjectChart) subjectChart.destroy();
+  subjectChart = new Chart(subCtx, {
+    type: 'bar',
+    data: {
+      labels: subjects.map(s => s.subject_name.length > 15 ? s.subject_name.substring(0,15)+'...' : s.subject_name),
+      datasets: [{
+        data: subjects.map(s => s.avg_pct),
+        backgroundColor: subjects.map(s => s.avg_pct < 60 ? 'rgba(248,113,113,0.7)' : s.avg_pct < 75 ? 'rgba(251,191,36,0.7)' : 'rgba(52,211,153,0.7)'),
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f9a', font: { size: 11 } } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a7f9a' }, max: 100, min: 0 }
+      }
+    }
+  });
+
+  // Distribution donut
+  const distCtx = document.getElementById('dist-chart').getContext('2d');
+  if (distChart) distChart.destroy();
+  distChart = new Chart(distCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Critical', 'Weak', 'Average', 'Strong'],
+      datasets: [{
+        data: [stats.critical_count, stats.weak_count, stats.average_count, stats.strong_count],
+        backgroundColor: ['rgba(248,113,113,0.8)','rgba(251,191,36,0.8)','rgba(96,165,250,0.8)','rgba(52,211,153,0.8)'],
+        borderWidth: 0,
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      cutout: '65%',
+      responsive: true,
+      plugins: {
+        legend: { position: 'right', labels: { color: '#7a7f9a', font: { size: 12 }, padding: 12 } }
+      }
+    }
+  });
+
+  // Weak topics list
+  const weakList = weak_topics.slice(0, 8);
+  document.getElementById('dash-weak-list').innerHTML = weakList.length ? weakList.map(t => `
+    <div class="topic-row">
+      <div class="topic-info">
+        <div class="topic-name">${t.topic_name}</div>
+        <div class="topic-subject">${t.subject_name}</div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${t.score_pct}%;background:${scoreColor(t.score_pct)}"></div>
+        </div>
+      </div>
+      ${bandHTML(t.performance_band)}
+      <div class="topic-score" style="color:${scoreColor(t.score_pct)}">${t.score_pct}%</div>
+    </div>
+  `).join('') : '<div class="empty"><div class="empty-icon">🎉</div><p>No weak topics found. Great performance!</p></div>';
+}
+
+async function loadRoadmap() {
+  document.getElementById('roadmap-list').innerHTML = '<div class="loading"><div class="spinner"></div> Generating roadmap…</div>';
+  try {
+    const res  = await fetch(`${API_BASE}/performance`);
+    const rows = await res.json();
+    const data = buildAnalysisFromRows(rows);
+    const allTopics = data.all_topics.sort((a, b) => a.score_pct - b.score_pct);
+
+    if (!allTopics.length) {
+      document.getElementById('roadmap-list').innerHTML =
+        '<div class="empty"><div class="empty-icon">🎯</div><p>No topics tracked yet. Upload your marks first.</p></div>';
+      return;
+    }
+
+    let hiddenTopics = JSON.parse(localStorage.getItem('hiddenRoadmapTopics') || '[]');
+    let visibleTopics = allTopics.filter(t => !hiddenTopics.includes(t.topic_name));
+
+    if (!visibleTopics.length) {
+      document.getElementById('roadmap-list').innerHTML =
+        '<div class="empty"><div class="empty-icon">🎯</div><p>All roadmap topics are completed or removed!</p></div>';
+      return;
+    }
+
+    document.getElementById('roadmap-list').innerHTML = visibleTopics.map((item, i) => {
+      const rank = i + 1;
+      const score = item.score_pct || 0;
+      return `
+      <div class="roadmap-item" style="position: relative;">
+        <button class="btn btn-ghost btn-sm" style="position: absolute; top: 16px; right: 16px; padding: 6px; color: var(--critical); border: 1px solid var(--critical); border-radius: 4px;" onclick="removeRoadmapItem('${item.topic_name.replace(/'/g, "\\'")}')" title="Remove from Roadmap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="rank-badge ${rank === 1 ? 'rank-1' : ''}">${rank}</div>
+        <div class="roadmap-info">
+          <div class="roadmap-name">${item.topic_name}</div>
+          <div class="roadmap-meta">
+            <span>📚 ${item.subject_name}</span>
+            <span>🎯 Score: <b style="color:${scoreColor(score)}">${score}%</b></span>
+            ${bandHTML(item.performance_band)}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    console.error("loadRoadmap error:", err);
+    document.getElementById('roadmap-list').innerHTML =
+      `<div class="empty" style="color:var(--critical)">Could not reach backend. Make sure the Node.js server is running.</div>`;
+  }
+}
+
+
+// ── Roadmap Deletion ──────────────────────────────────────────────────────────
+function removeRoadmapItem(topicName) {
+  if (!confirm(`Are you sure you want to remove "${topicName}" from your roadmap?`)) return;
+  let hiddenTopics = JSON.parse(localStorage.getItem('hiddenRoadmapTopics') || '[]');
+  if (!hiddenTopics.includes(topicName)) {
+    hiddenTopics.push(topicName);
+    localStorage.setItem('hiddenRoadmapTopics', JSON.stringify(hiddenTopics));
+  }
+  toast(`Removed "${topicName}" from roadmap`, 'success');
+  loadRoadmap(); // Refresh list to reflect removal
+  loadAnalysis(); // Refresh dashboard stats actively
+}
+
+// ── Google Auth ───────────────────────────────────────────────────
+window.addEventListener('load', () => {
+    if (typeof google === 'undefined') return;
+    
+    google.accounts.id.initialize({
+      client_id: window.GOOGLE_CLIENT_ID || "66198409645-et081tedgqpqgpdorlicvauuhcf089o2.apps.googleusercontent.com",
+      callback: handleCredentialResponse
+    });
+    
+    const loginGoogleBtn = document.getElementById("google-btn-login");
+    if (loginGoogleBtn) {
+        google.accounts.id.renderButton(loginGoogleBtn, { theme: "outline", size: "large", width: 400 });
+    }
+
+    const regGoogleBtn = document.getElementById("google-btn-reg");
+    if (regGoogleBtn) {
+        google.accounts.id.renderButton(regGoogleBtn, { theme: "outline", size: "large", width: 400 });
+    }
+});
+
+async function handleCredentialResponse(response) {
+  try {
+     const res = await fetch(`${API_BASE}/api/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: response.credential })
+     });
+     const data = await res.json();
+     if (!res.ok) throw new Error(data.error || "Failed to authenticate with Google");
+
+     currentUser = data;
+     saveDB('currentUser', data);
+     toast("Signed in with Google successfully!");
+     bootApp();
+  } catch (e) {
+     document.getElementById('auth-error').textContent = e.message;
+  }
+}
+
+// ── File Upload & AI Parsing ──────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function handleMarksFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const name = file.name.toLowerCase();
+  // Allow processing of both Images and PDFs for Mark extraction
+  if (file.type.startsWith('image/') || name.endsWith('.pdf') || file.type === 'application/pdf') {
+    processDocumentWithAI(file);
+  } else if (name.endsWith('.csv')) {
+    processCSV(file);
+  } else {
+    toast('Unsupported file format. Please upload Image, PDF, or CSV', 'error');
+  }
+}
+
+function processCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.trim().split('\n');
+    lines.forEach((line, i) => {
+      if (i === 0) return; // skip header
+      const parts = line.split(',');
+      if(parts.length >= 4) {
+        addManualRow(parts[0], parts[1], parts[2], parts[3], parts[4]);
+      }
+    });
+    toast('CSV Parsed! Review data below.');
+  };
+  reader.readAsText(file);
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function processDocumentWithAI(file) {
+  document.getElementById('ai-extract-loading').style.display = 'flex';
+  try {
+    const base64Str = await fileToBase64(file);
+    let mimeType = file.type;
+    // Normalize PDF mimeType as some browsers handle it poorly
+    if (!mimeType || file.name.toLowerCase().endsWith('.pdf')) {
+        mimeType = 'application/pdf';
+    }
+    
+    const data = base64Str.split(',')[1];
+    const prompt = `Extract academic marks from this document/image. Return ONLY a raw JSON array of objects. Do not wrap in markdown \`\`\` blocks.
+    Each object should have exactly these keys: "subject" (string), "topic" (string, default to subject if no specific topic), "marks_obtained" (number), "max_marks" (number), "date" (YYYY-MM-DD, default to today).
+    Example: [{"subject": "Math", "topic": "Calculus", "marks_obtained": 80, "max_marks": 100, "date": "2024-01-01"}]`;
+    
+    // Crucial Bug Fix: Pass an array of objects to callGemini, not a raw string
+    let jsonStr = await callGemini(prompt, [{ mimeType, data }]);
+    
+    // Cleanup markdown if AI ignores instructions
+    jsonStr = jsonStr.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    // Robust JSON extraction: Find the first '[' and last ']' to extract the array
+    const startIdx = jsonStr.indexOf('[');
+    const endIdx = jsonStr.lastIndexOf(']');
+    
+    if (startIdx === -1 || endIdx === -1) {
+      throw new Error('AI could not identify mark data. Ensure the PDF contains visible scores.');
+    }
+    
+    const cleanJson = jsonStr.substring(startIdx, endIdx + 1);
+    const parsedData = JSON.parse(cleanJson);
+    
+    parsedData.forEach(item => {
+      addManualRow(item.subject, item.topic, item.marks_obtained, item.max_marks, item.date);
+    });
+    toast('AI successfully extracted data! Review and save.', 'success');
+  } catch (error) {
+    console.error(error);
+    toast(`AI Extraction failed: ${error.message.substring(0,80)}`, 'error');
+  } finally {
+    document.getElementById('ai-extract-loading').style.display = 'none';
+  }
+}
+
+function addManualRow(subj='', topic='', marks='', max='100', date='') {
+  const today = new Date().toISOString().split('T')[0];
+  const tbody = document.getElementById('manual-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" value="${subj}" placeholder="Subject (e.g. DSA)" style="width:140px"></td>
+    <td><input type="text" value="${topic}" placeholder="Topic (e.g. Arrays)" style="width:140px"></td>
+    <td><input type="number" min="0" value="${marks}" placeholder="Marks" style="width:70px"></td>
+    <td><input type="number" min="0" value="${max}" style="width:70px"></td>
+    <td><input type="date" value="${date || today}" style="width:130px"></td>
+    <td><button class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function clearManual() {
+  document.getElementById('manual-body').innerHTML = '';
+}
+
+async function submitManual() {
+  const rows = document.querySelectorAll('#manual-body tr');
+  if (!rows.length) { toast('Add at least one row', 'error'); return; }
+
+  let valid = true;
+  const rowsData = [];
+
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('input');
+    const subj    = cells[0].value.trim();
+    const topic   = cells[1].value.trim();
+    const obtained = parseFloat(cells[2].value);
+    const max      = parseFloat(cells[3].value);
+    const date     = cells[4].value;
+
+    if (!subj || isNaN(obtained) || isNaN(max)) { valid = false; return; }
+    rowsData.push({ subject: subj, topic: topic || subj, marks_obtained: obtained, max_marks: max, exam_date: date });
+  });
+
+  if (!valid) { toast('Fill out Subject, Marks, and Max Marks for all rows.', 'error'); return; }
+
+  let saved = 0;
+  let errors = 0;
+
+  for (const row of rowsData) {
+    try {
+      // Step 1: Get or create subject
+      let subjectId = await getOrCreateSubject(row.subject);
+      // Step 2: Get or create topic under that subject
+      let topicId   = await getOrCreateTopic(subjectId, row.topic);
+
+      // Step 3: Post the score
+      const res = await fetch(`${API_BASE}/scores`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student_id:     currentUser.student_id,
+          topic_id:       topicId,
+          marks:          row.marks_obtained,
+          max_marks:      row.max_marks,
+          exam_date:      row.exam_date
+        })
+      });
+      if (res.ok) saved++;
+      else errors++;
+    } catch (e) {
+      console.error("Score save error:", e);
+      errors++;
+    }
+  }
+
+  if (saved > 0) {
+    toast(`${saved} score${saved > 1 ? 's' : ''} saved to MySQL ✅`);
+    clearManual();
+    await loadAnalysis();
+  }
+  if (errors > 0) toast(`${errors} row(s) failed. Check console.`, 'error');
+}
+
+// Helper: fetch subject_id by name, create if doesn't exist
+async function getOrCreateSubject(name) {
+  const res  = await fetch(`${API_BASE}/subjects`);
+  const list = await res.json();
+  const found = list.find(s => s.name.toLowerCase() === name.toLowerCase());
+  if (found) return found.subject_id;
+
+  // Create it
+  const cr = await fetch(`${API_BASE}/subjects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  });
+  const data = await cr.json();
+  return data.subject_id;
+}
+
+// Helper: fetch topic_id by name + subject, create if doesn't exist
+async function getOrCreateTopic(subjectId, topicName) {
+  const res  = await fetch(`${API_BASE}/topics?subject_id=${subjectId}`);
+  const list = await res.json();
+  const found = list.find(t => t.topic_name.toLowerCase() === topicName.toLowerCase());
+  if (found) return found.topic_id;
+
+  // Create it
+  const cr = await fetch(`${API_BASE}/topics`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subject_id: subjectId, topic_name: topicName })
+  });
+  const data = await cr.json();
+  return data.topic_id;
+}
+
+
+// ── AI Tutor (Chat & Material) ────────────────────────────────────────────────
+async function handleMaterialUpload(e) {
+  const files = e.target.files;
+  if (!files.length) return;
+
+  for (let file of files) {
+    const blobUrl = URL.createObjectURL(file);
+    uploadedFiles.push({ 
+      name: file.name, 
+      type: file.type,
+      file: file,
+      blobUrl: blobUrl,
+      base64: null // Loaded lazily to prevent freezing
+    });
+  }
+  
+  renderUploadedFiles();
+  if (activeFileIndex === -1 && uploadedFiles.length > 0) {
+    selectFile(0); // Auto-select the first uploaded file
+  }
+}
+
+async function getBase64ForFile(fileObj) {
+  if (fileObj.base64) return fileObj.base64;
+  
+  const base64Str = await fileToBase64(fileObj.file);
+  let mimeType = fileObj.type;
+  
+  // Normalize PDF mimeType as some browsers map it to unexpected types
+  if (!mimeType || fileObj.name.toLowerCase().endsWith('.pdf')) {
+      mimeType = 'application/pdf';
+  }
+  
+  fileObj.base64 = {
+    mimeType: mimeType,
+    data: base64Str.split(',')[1]
+  };
+  return fileObj.base64;
+}
+
+function renderUploadedFiles() {
+  const list = document.getElementById('uploaded-files-list');
+  if (uploadedFiles.length === 0) {
+      list.innerHTML = '';
+      return;
+  }
+  
+  list.innerHTML = uploadedFiles.map((f, i) => {
+    const isActive = (i === activeFileIndex);
+    const bg = isActive ? 'rgba(108,126,248,0.15)' : 'var(--surface)';
+    const border = isActive ? 'var(--accent)' : 'var(--border)';
+    return `
+    <div style="display:flex; align-items:center; background:${bg}; padding:6px 12px; border-radius:20px; font-size:13px; border: 1px solid ${border}; cursor:pointer; transition: all 0.2s;" onclick="selectFile(${i})">
+        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px; margin-right:8px; color:${isActive ? 'var(--accent)' : 'var(--text)'};">📄 ${f.name}</span>
+        <span style="color:var(--muted); font-weight:bold; cursor:pointer;" onclick="event.stopPropagation(); removeFile(${i})">✕</span>
+    </div>`;
+  }).join('');
+}
+
+function selectFile(idx) {
+  activeFileIndex = idx;
+  renderUploadedFiles();
+  const fileObj = uploadedFiles[idx];
+  const viewer = document.getElementById('document-viewer');
+  
+  const isPdf = fileObj.type === 'application/pdf' || fileObj.name.toLowerCase().endsWith('.pdf');
+  
+  if (viewer) {
+      if (fileObj.type.startsWith('image/')) {
+          currentPdf = null;
+          viewer.innerHTML = `<img src="${fileObj.blobUrl}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius: var(--r);">`;
+      } else if (isPdf) {
+          renderPdfPreview(fileObj.file);
+      } else {
+          viewer.innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted)">Preview not available for this file type.<br>The AI can still read it!</div>`;
+      }
+  }
+  
+  // Inform the user in chat
+  const chatBox = document.getElementById('chat-messages');
+  if (chatBox) {
+      chatBox.innerHTML += `<div class="chat-message ai" style="background: var(--surface); border: 1px solid var(--border);">👀 You are now viewing <b>${fileObj.name}</b>. What would you like to know about it?</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
+  }
+}
+
+async function renderPdfPreview(file) {
+    const viewer = document.getElementById('document-viewer');
+    viewer.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        currentPdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+        pdfCurrentPage = 1;
+        
+        const container = document.createElement('div');
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.overflowY = 'auto';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.alignItems = 'center';
+        container.style.background = '#e5e7eb'; // Slightly darker back to frame the PDF page
+        
+        const controls = document.createElement('div');
+        controls.innerHTML = `
+            <div style="display:flex; gap:16px; margin: 12px 0; background:var(--surface); padding:8px 16px; border-radius:20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid var(--border); color: var(--text);">
+                <button onclick="changePdfPage(-1)" style="background:none;border:none;color:var(--accent);cursor:pointer;font-weight:bold;">← Prev</button>
+                <span id="pdf-page-num" style="font-size:13px; font-weight:500; align-self:center;">Page 1 of ${currentPdf.numPages}</span>
+                <button onclick="changePdfPage(1)" style="background:none;border:none;color:var(--accent);cursor:pointer;font-weight:bold;">Next →</button>
+            </div>
+        `;
+        
+        const canvasContainer = document.createElement('div');
+        canvasContainer.id = 'pdf-canvas-container';
+        canvasContainer.style.boxShadow = '0 0 10px rgba(0,0,0,0.15)';
+        canvasContainer.style.marginBottom = '20px';
+        
+        viewer.innerHTML = '';
+        viewer.appendChild(controls);
+        viewer.appendChild(canvasContainer);
+        
+        updatePdfView();
+    } catch (err) {
+        console.error(err);
+        viewer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--critical)">Preview generation failed.<br>The AI can still read the document!</div>`;
+    }
+}
+
+async function updatePdfView() {
+    const container = document.getElementById('pdf-canvas-container');
+    if(!container || !currentPdf) return;
+    
+    try {
+        const page = await currentPdf.getPage(pdfCurrentPage);
+        const viewport = page.getViewport({ scale: 1.2 });
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        canvas.style.maxWidth = '100%';
+        canvas.style.height = 'auto';
+        canvas.style.display = 'block';
+        
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        
+        container.innerHTML = '';
+        container.appendChild(canvas);
+        document.getElementById('pdf-page-num').innerText = `Page ${pdfCurrentPage} of ${currentPdf.numPages}`;
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function changePdfPage(delta) {
+    if(!currentPdf) return;
+    let newPage = pdfCurrentPage + delta;
+    if(newPage >= 1 && newPage <= currentPdf.numPages) {
+        pdfCurrentPage = newPage;
+        updatePdfView();
+    }
+}
+
+function removeFile(idx) {
+  // Revoke object URL to free memory
+  if (uploadedFiles[idx].blobUrl) URL.revokeObjectURL(uploadedFiles[idx].blobUrl);
+  
+  uploadedFiles.splice(idx, 1);
+  
+  if (uploadedFiles.length === 0) {
+    clearMaterial();
+  } else {
+    // Reset active index if the deleted file was active, or shift index
+    if (activeFileIndex === idx) selectFile(0);
+    else if (activeFileIndex > idx) activeFileIndex--;
+    renderUploadedFiles();
+  }
+}
+
+function clearMaterial() {
+  uploadedFiles.forEach(f => URL.revokeObjectURL(f.blobUrl));
+  uploadedFiles = [];
+  activeFileIndex = -1;
+  renderUploadedFiles();
+  
+  const viewer = document.getElementById('document-viewer');
+  if (viewer) {
+      viewer.innerHTML = `
+          <div style="text-align:center; color:var(--muted);">
+              <div style="font-size:32px; margin-bottom:12px;">📄</div>
+              <div>Upload PDFs or Images to view them here</div>
+          </div>`;
+  }
+  
+  chatHistory = [];
+  const chatBox = document.getElementById('chat-messages');
+  if (chatBox) {
+      chatBox.innerHTML = '<div class="chat-message ai">Study materials cleared. Upload new PDFs or images to begin.</div>';
+  }
+}
+
+async function sendChatMessage() {
+  const inputEl = document.getElementById('chat-input');
+  const msg = inputEl.value.trim();
+  if (!msg) return;
+
+  const chatBox = document.getElementById('chat-messages');
+  chatBox.innerHTML += `<div class="chat-message user">${msg}</div>`;
+  inputEl.value = '';
+  
+  // Add Thinking / Loading State
+  const loadingId = 'loading-' + Date.now();
+  chatBox.innerHTML += `<div class="chat-message ai" id="${loadingId}"><div class="spinner" style="width:14px; height:14px; display:inline-block; vertical-align:middle; border-top-color:var(--accent);"></div> Reading document & thinking...</div>`;
+  chatBox.scrollTop = chatBox.scrollHeight;
+
+  const sendBtn = document.getElementById('chat-send-btn');
+  sendBtn.disabled = true;
+
+  try {
+    let systemInstruction = `You are an expert AI Study Tutor. Be encouraging, clear, and concise.`;
+    let filesDataToSend = [];
+
+    // Dynamically attach the currently viewed document
+    if (activeFileIndex !== -1) {
+      const activeFile = uploadedFiles[activeFileIndex];
+      systemInstruction += ` The user is currently reading a document named "${activeFile.name}". If they ask a question, prioritize answering based on this document.`;
+      
+      const base64Data = await getBase64ForFile(activeFile);
+      filesDataToSend.push(base64Data);
+    }
+
+    const responseText = await callGemini(msg, filesDataToSend, chatHistory, systemInstruction);
+    
+    // Remove loading indicator safely
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) loadingEl.remove();
+    
+    // Update history with TEXT ONLY to keep requests lightweight and fast
+    chatHistory.push({ role: 'user', parts: [{ text: msg }] });
+    chatHistory.push({ role: 'model', parts: [{ text: responseText }] });
+
+    // Formatting basic markdown for UI
+    const formattedHtml = responseText
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
+
+    chatBox.innerHTML += `<div class="chat-message ai">${formattedHtml}</div>`;
+  } catch (err) {
+    const loadingEl = document.getElementById(loadingId);
+    if (loadingEl) loadingEl.remove();
+    chatBox.innerHTML += `<div class="chat-message ai" style="color:var(--critical)">Sorry, I encountered an error.<br><br><b>Details:</b> ${err.message || 'Network error'}</div>`;
+    console.error("AI Tutor Error:", err);
+  }
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+  sendBtn.disabled = false;
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('studyiq_theme', isDark ? 'dark' : 'light');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+if (localStorage.getItem('studyiq_theme') === 'dark') {
+  document.body.classList.add('dark-mode');
+}
+
+// ── Session Restore on Refresh ───────────────────────────────────────────────
+try {
+  const savedUser = localStorage.getItem('studyiq_current_user');
+  if (savedUser) {
+    currentUser = JSON.parse(savedUser);
+    if (currentUser && currentUser.student_id || currentUser && currentUser.teacher_id) {
+      bootApp();
+    } else {
+      // Corrupted data — clear it
+      localStorage.removeItem('studyiq_current_user');
+    }
+  }
+} catch(e) {
+  console.warn('Session restore failed — clearing saved user:', e);
+  localStorage.removeItem('studyiq_current_user');
+}
+</script>
+</body>
+</html>
