@@ -66,7 +66,31 @@ const pool = mysql.createPool({
 });
 
 pool.query("SELECT 1")
-  .then(() => console.log("🗄️  Database connected ✅"))
+  .then(async () => {
+    console.log("🗄️  Database connected ✅");
+    // Auto-migrate: add teacher_email column if it does not exist
+    try {
+      await pool.query(`
+        ALTER TABLE students
+        ADD COLUMN IF NOT EXISTS teacher_email VARCHAR(150) DEFAULT NULL
+      `);
+      console.log("✅ students.teacher_email column verified");
+    } catch (e) {
+      // MySQL < 8.0 does not support IF NOT EXISTS on ALTER — try the check manually
+      try {
+        const [cols] = await pool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'students' AND COLUMN_NAME = 'teacher_email'
+        `);
+        if (cols.length === 0) {
+          await pool.query("ALTER TABLE students ADD COLUMN teacher_email VARCHAR(150) DEFAULT NULL");
+          console.log("✅ Added teacher_email column to students table");
+        }
+      } catch (e2) {
+        console.warn("⚠️  Could not auto-migrate teacher_email column:", e2.message);
+      }
+    }
+  })
   .catch(err => console.error("❌ Database error:", err.message));
 
 // ── Email Transporter ─────────────────────────────────────────────────────────
@@ -116,6 +140,11 @@ async function parsePdf(buffer) {
 // =============================================================================
 // ROUTES
 // =============================================================================
+
+// ── Public Config ─────────────────────────────────────────────────────────────
+app.get('/api/config', (_req, res) => {
+  res.json({ googleClientId: GOOGLE_CLIENT_ID || null });
+});
 
 // ── Student Auth ──────────────────────────────────────────────────────────────
 app.post("/register", async (req, res) => {

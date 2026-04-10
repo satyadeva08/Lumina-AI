@@ -1892,24 +1892,47 @@ function removeRoadmapItem(topicName) {
 }
 
 // ── Google Auth ───────────────────────────────────────────────────
-window.addEventListener('load', () => {
-    if (typeof google === 'undefined') return;
-    
-    google.accounts.id.initialize({
-      client_id: window.GOOGLE_CLIENT_ID || "66198409645-et081tedgqpqgpdorlicvauuhcf089o2.apps.googleusercontent.com",
-      callback: handleCredentialResponse
-    });
-    
-    const loginGoogleBtn = document.getElementById("google-btn-login");
-    if (loginGoogleBtn) {
-        google.accounts.id.renderButton(loginGoogleBtn, { theme: "outline", size: "large", width: 400 });
-    }
+async function initGoogleAuth() {
+  try {
+    const res = await fetch(API_BASE + '/api/config');
+    const cfg = await res.json();
+    const clientId = cfg.googleClientId;
 
-    const regGoogleBtn = document.getElementById("google-btn-reg");
-    if (regGoogleBtn) {
-        google.accounts.id.renderButton(regGoogleBtn, { theme: "outline", size: "large", width: 400 });
-    }
-});
+    const showNotConfigured = () => {
+      ['google-btn-login','google-btn-reg'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<small style="color:var(--muted)">Google Sign-In not configured</small>';
+      });
+    };
+
+    if (!clientId) { showNotConfigured(); return; }
+
+    // Wait for Google GSI script to be ready
+    const waitForGoogle = (resolve, reject, tries=0) => {
+      if (typeof google !== 'undefined' && google.accounts) return resolve();
+      if (tries > 20) return reject(new Error('Google GSI script did not load'));
+      setTimeout(() => waitForGoogle(resolve, reject, tries+1), 200);
+    };
+    await new Promise(waitForGoogle);
+
+    google.accounts.id.initialize({ client_id: clientId, callback: handleCredentialResponse });
+
+    const loginBtn = document.getElementById('google-btn-login');
+    if (loginBtn) google.accounts.id.renderButton(loginBtn, { theme: 'outline', size: 'large', width: 400 });
+
+    const regBtn = document.getElementById('google-btn-reg');
+    if (regBtn) google.accounts.id.renderButton(regBtn, { theme: 'outline', size: 'large', width: 400 });
+
+  } catch(e) {
+    console.warn('Google auth init failed:', e.message);
+    ['google-btn-login','google-btn-reg'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<small style="color:var(--muted)">Google Sign-In unavailable</small>';
+    });
+  }
+}
+
+window.addEventListener('load', () => { initGoogleAuth(); });
 
 async function handleCredentialResponse(response) {
   try {

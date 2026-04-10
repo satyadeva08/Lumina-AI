@@ -42,7 +42,7 @@ function waitSeconds(userId = "global") {
 }
 
 // ── Models ────────────────────────────────────────────────────────────────────
-const MODEL_VISION    = "llama-3.2-90b-vision-preview";
+const MODEL_VISION    = "meta-llama/llama-4-scout-17b-16e-instruct"; // llama-3.2-90b-vision-preview was decommissioned
 const MODEL_TEXT      = "llama-3.3-70b-versatile";
 const MODEL_FAST      = "llama-3.1-8b-instant";
 
