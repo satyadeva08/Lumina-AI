@@ -545,7 +545,9 @@ app.post("/api/send-report", async (req, res) => {
   if (!teacherEmail || !isValidEmail(teacherEmail))
     return res.status(400).json({ error: "Valid teacher email required" });
   if (!transporter)
-    return res.status(503).json({ error: "Email service initialising — try again in a moment." });
+    return res.status(503).json({
+      error: "Email is not configured on this server. Please set EMAIL_USER and EMAIL_PASS environment variables on Render, then redeploy."
+    });
 
   try {
     const doc     = new PDFDocument({ margin: 50 });
