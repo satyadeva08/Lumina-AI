@@ -9,6 +9,7 @@ const express     = require("express");
 const cors        = require("cors");
 const bcrypt      = require("bcrypt");
 const path        = require("path");
+const fs          = require("fs");
 const mysql       = require("mysql2/promise");
 const nodemailer  = require("nodemailer");
 const PDFDocument = require("pdfkit");
@@ -17,7 +18,7 @@ const crypto      = require("crypto");
 require("dotenv").config();
 
 const { getTutorResponse, generateQuizFromText, generateFlashcards, getAIStudyAdvice } = require("./aiService");
-const { getGeminiResponse } = require("./geminiService");  // only import what exists
+const { getGeminiResponse } = require("./geminiService");
 const { OAuth2Client } = require("google-auth-library");
 
 const app         = express();
@@ -29,19 +30,19 @@ const allowedOrigins = [
   "http://127.0.0.1:8000",
   "http://localhost:5500",
   "http://127.0.0.1:5500",
+  "http://localhost:3000",
 ];
 if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
     if (!origin) return cb(null, true);
-    // Allow all Vercel and Render deployments for this project
     if (
       allowedOrigins.includes(origin) ||
       origin.endsWith(".vercel.app") ||
       origin.endsWith(".onrender.com") ||
-      origin.endsWith(".railway.app")
+      origin.endsWith(".railway.app") ||
+      origin.endsWith(".netlify.app")
     ) return cb(null, true);
     cb(new Error("CORS blocked: " + origin));
   },
@@ -52,11 +53,15 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // ── Static frontend ───────────────────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, "templates")));
+// FIX: serve index.html from repo root — there is no /templates folder in this repo
+app.use(express.static(path.join(__dirname)));
 app.get("/favicon.ico", (_req, res) => res.status(204).end());
-app.get("/", (_req, res) =>
-  res.sendFile(path.join(__dirname, "templates", "code.html"))
-);
+app.get("/", (_req, res) => {
+  const htmlPath = path.join(__dirname, "index.html");
+  if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
+  // Fallback: show a useful status message instead of crashing
+  res.json({ status: "Lumina AI backend is running ✅", message: "index.html not found in repo root." });
+});
 
 // ── Google OAuth ──────────────────────────────────────────────────────────────
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
@@ -68,8 +73,10 @@ const pool = mysql.createPool({
   user:               process.env.DB_USER || "root",
   password:           process.env.DB_PASS || "",
   database:           process.env.DB_NAME || "adaptive_learning",
-  port:               parseInt(process.env.DB_PORT, 10) || 3306,  // ← ADD THIS
-  ssl:                process.env.DB_HOST?.includes('railway.app') ? { rejectUnauthorized: false } : undefined,  // ← ADD THIS
+  port:               parseInt(process.env.DB_PORT, 10) || 3306,
+  ssl:                process.env.DB_SSL === "true" || process.env.DB_HOST?.includes("railway.app")
+                        ? { rejectUnauthorized: false }
+                        : undefined,
   waitForConnections: true,
   connectionLimit:    10,
   queueLimit:         0,
@@ -86,7 +93,6 @@ pool.query("SELECT 1")
       `);
       console.log("✅ students.teacher_email column verified");
     } catch (e) {
-      // MySQL < 8.0 does not support IF NOT EXISTS on ALTER — try the check manually
       try {
         const [cols] = await pool.query(`
           SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
@@ -101,11 +107,14 @@ pool.query("SELECT 1")
       }
     }
   })
-  .catch(err => console.error("❌ Database error:", err.message));
+  .catch(err => {
+    console.error("❌ Database connection error:", err.message);
+    console.error("   Check DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT env vars on Render.");
+  });
 
 // ── Email Transporter ─────────────────────────────────────────────────────────
-let transporter  = null;
-let useEthereal  = false;
+let transporter = null;
+let useEthereal = false;
 
 async function initMailer() {
   if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
@@ -135,9 +144,9 @@ async function initMailer() {
 initMailer().catch(console.error);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const hashPassword   = plain       => bcrypt.hash(plain, SALT_ROUNDS);
-const verifyPassword = (plain, h)  => bcrypt.compare(plain, h);
-const isValidEmail   = email       => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const hashPassword   = plain      => bcrypt.hash(plain, SALT_ROUNDS);
+const verifyPassword = (plain, h) => bcrypt.compare(plain, h);
+const isValidEmail   = email      => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 async function parsePdf(buffer) {
   const parser = typeof pdf === "function" ? pdf
@@ -151,19 +160,24 @@ async function parsePdf(buffer) {
 // ROUTES
 // =============================================================================
 
+// ── Health Check ──────────────────────────────────────────────────────────────
+app.get("/api/health", (_req, res) =>
+  res.json({ status: "ok", timestamp: new Date().toISOString() })
+);
+
 // ── Public Config ─────────────────────────────────────────────────────────────
-app.get('/api/config', (_req, res) => {
+app.get("/api/config", (_req, res) => {
   res.json({ googleClientId: GOOGLE_CLIENT_ID || null });
 });
 
 // ── Student Auth ──────────────────────────────────────────────────────────────
 app.post("/register", async (req, res) => {
   const { name = "", email = "", password = "", department = "", semester = 1 } = req.body;
-  if (!name.trim())          return res.status(400).json({ error: "Name is required" });
-  if (!isValidEmail(email))  return res.status(400).json({ error: "Invalid email address" });
-  if (password.length < 6)   return res.status(400).json({ error: "Password must be at least 6 characters" });
+  if (!name.trim())         return res.status(400).json({ error: "Name is required" });
+  if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email address" });
+  if (password.length < 6)  return res.status(400).json({ error: "Password must be at least 6 characters" });
   const sem = parseInt(semester, 10);
-  if (sem < 1 || sem > 8)   return res.status(400).json({ error: "Semester must be 1–8" });
+  if (sem < 1 || sem > 8)  return res.status(400).json({ error: "Semester must be 1–8" });
 
   try {
     const [result] = await pool.execute(
@@ -173,7 +187,7 @@ app.post("/register", async (req, res) => {
     return res.status(201).json({ message: "Registered successfully", student_id: result.insertId });
   } catch (e) {
     if (e.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "Email already registered" });
-    console.error("Register:", e.message);
+    console.error("Student register error:", e.message);
     return res.status(500).json({ error: "Registration failed. Please try again." });
   }
 });
@@ -186,12 +200,17 @@ app.post("/login", async (req, res) => {
       "SELECT student_id, name, email, department, semester, password_hash FROM students WHERE email=?",
       [email.trim().toLowerCase()]
     );
-    if (rows.length === 0 || !(await verifyPassword(password, rows[0].password_hash)))
-      return res.status(401).json({ error: "Invalid email or password" });
-    const { password_hash, ...user } = rows[0];
+    // FIX: split the check so bcrypt is never called with null hash
+    if (rows.length === 0) return res.status(401).json({ error: "Invalid email or password" });
+    const student = rows[0];
+    if (!student.password_hash) return res.status(401).json({ error: "Invalid email or password" });
+    const match = await bcrypt.compare(String(password), student.password_hash);
+    if (!match) return res.status(401).json({ error: "Invalid email or password" });
+    const { password_hash, ...user } = student;
     return res.json(user);
   } catch (e) {
-    return res.status(500).json({ error: "Login failed." });
+    console.error("Student login error:", e.message, e.stack);
+    return res.status(500).json({ error: "Login failed: " + e.message });
   }
 });
 
@@ -217,7 +236,7 @@ app.post("/api/auth/google", async (req, res) => {
     }
     return res.json(rows[0]);
   } catch (e) {
-    console.error("Google auth:", e.message);
+    console.error("Google auth error:", e.message);
     return res.status(401).json({ error: "Invalid Google token" });
   }
 });
@@ -229,11 +248,17 @@ app.post("/api/teacher/register", async (req, res) => {
   if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email" });
   if (password.length < 6)  return res.status(400).json({ error: "Password must be at least 6 characters" });
   try {
+    const hashed = await hashPassword(password);
     const [result] = await pool.execute(
       "INSERT INTO teachers (name, email, password_hash) VALUES (?, ?, ?)",
-      [name.trim(), email.trim().toLowerCase(), await hashPassword(password)]
+      [name.trim(), email.trim().toLowerCase(), hashed]
     );
-    return res.status(201).json({ teacher_id: result.insertId, name, email });
+    console.log(`✅ Teacher registered: ${email} (id=${result.insertId})`);
+    return res.status(201).json({
+      teacher_id: result.insertId,
+      name:       name.trim(),
+      email:      email.trim().toLowerCase(),
+    });
   } catch (e) {
     if (e.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "Email already registered" });
     console.error("Teacher register error:", e.message);
@@ -241,20 +266,37 @@ app.post("/api/teacher/register", async (req, res) => {
   }
 });
 
+// FIX: teacher login — split null-hash guard, use bcrypt directly, log real errors
 app.post("/api/teacher/login", async (req, res) => {
   const { email = "", password = "" } = req.body;
-  if (!email.trim() || !password) return res.status(400).json({ error: "Email and password required" });
+  if (!email.trim() || !password)
+    return res.status(400).json({ error: "Email and password required" });
   try {
     const [rows] = await pool.execute(
       "SELECT teacher_id, name, email, department, password_hash FROM teachers WHERE email=?",
       [email.trim().toLowerCase()]
     );
-    if (rows.length === 0 || !(await verifyPassword(password, rows[0].password_hash)))
+    if (rows.length === 0)
       return res.status(401).json({ error: "Invalid email or password" });
-    const { password_hash, ...teacher } = rows[0];
-    return res.json({ role: "teacher", ...teacher });
+
+    const teacher = rows[0];
+
+    // Guard: password_hash missing (e.g. old row inserted without hash)
+    if (!teacher.password_hash)
+      return res.status(401).json({ error: "Account has no password set. Please re-register." });
+
+    // Use bcrypt.compare directly — avoids any stale wrapper issues
+    const match = await bcrypt.compare(String(password), teacher.password_hash);
+    if (!match)
+      return res.status(401).json({ error: "Invalid email or password" });
+
+    const { password_hash, ...safeTeacher } = teacher;
+    console.log(`✅ Teacher logged in: ${safeTeacher.email}`);
+    return res.json({ role: "teacher", ...safeTeacher });
   } catch (e) {
-    return res.status(500).json({ error: "Login failed" });
+    // FIX: log the real error — now visible in Render logs
+    console.error("Teacher login error:", e.message, e.stack);
+    return res.status(500).json({ error: "Login failed: " + e.message });
   }
 });
 
@@ -266,7 +308,10 @@ app.get("/api/teacher/profile/:teacher_id", async (req, res) => {
     );
     if (rows.length === 0) return res.status(404).json({ error: "Teacher not found" });
     return res.json(rows[0]);
-  } catch (e) { return res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error("Teacher profile GET error:", e.message);
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 app.put("/api/teacher/profile/:teacher_id", async (req, res) => {
@@ -289,7 +334,10 @@ app.put("/api/teacher/profile/:teacher_id", async (req, res) => {
     args.push(teacher_id);
     await pool.execute(q, args);
     return res.json({ message: "Teacher profile updated" });
-  } catch (e) { return res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error("Teacher profile PUT error:", e.message);
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 app.get("/api/teacher/:email/students", async (req, res) => {
@@ -299,7 +347,10 @@ app.get("/api/teacher/:email/students", async (req, res) => {
       [req.params.email]
     );
     return res.json(rows);
-  } catch (e) { return res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error("Teacher students GET error:", e.message);
+    return res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Students ──────────────────────────────────────────────────────────────────
@@ -401,11 +452,10 @@ app.get("/performance", async (req, res) => {
 app.get("/api/recommendations/:student_id", async (req, res) => {
   const { student_id } = req.params;
   try {
-    // Run stored procedure — ignore errors (e.g. no scores yet)
     try { await pool.execute("CALL generate_study_roadmap(?)", [student_id]); } catch (_) {}
 
     const [rows] = await pool.execute(
-      `SELECT t.topic_name, sp.score_percentage
+      `SELECT t.topic_name, sp.score_percentage AS score_pct
        FROM study_plan sp JOIN topics t ON sp.topic_id = t.topic_id
        WHERE sp.student_id=? AND sp.status='pending'
        ORDER BY sp.priority_score DESC LIMIT 3`,
@@ -416,8 +466,7 @@ app.get("/api/recommendations/:student_id", async (req, res) => {
     const advice = await getAIStudyAdvice(rows);
     return res.json({ status: "success", topics: rows, advice: advice || "Focus on reviewing your weak topics consistently every day." });
   } catch (e) {
-    console.error("Recommendations:", e.message);
-    // Return a friendly message instead of an error so the UI doesn't break
+    console.error("Recommendations error:", e.message);
     return res.json({ status: "success", advice: "Add your scores first to get personalised AI study advice!" });
   }
 });
@@ -474,7 +523,7 @@ app.post("/api/chat", async (req, res) => {
     if (reply) return res.json({ status: "success", reply });
     return res.status(500).json({ status: "error", message: "AI service temporarily unavailable." });
   } catch (e) {
-    console.error("Chat:", e.message);
+    console.error("Chat error:", e.message);
     return res.status(500).json({ status: "error", message: e.message });
   }
 });
@@ -499,7 +548,6 @@ app.post("/api/send-report", async (req, res) => {
     return res.status(503).json({ error: "Email service initialising — try again in a moment." });
 
   try {
-    // Build PDF
     const doc     = new PDFDocument({ margin: 50 });
     const buffers = [];
     doc.on("data", c => buffers.push(c));
@@ -549,7 +597,6 @@ app.post("/api/send-report", async (req, res) => {
     doc.end();
     const pdfBuffer = await pdfReady;
 
-    // Send email
     const info = await transporter.sendMail({
       from:    '"Lumina AI Insights" <noreply@lumina.ai>',
       to:      teacherEmail,
@@ -574,7 +621,7 @@ app.post("/api/send-report", async (req, res) => {
     return res.json({ message: "Email sent!", ...(preview && { preview_url: preview }) });
 
   } catch (err) {
-    console.error("Email/PDF:", err.message);
+    console.error("Email/PDF error:", err.message);
     return res.status(500).json({ error: "Failed to send report: " + err.message });
   }
 });
@@ -583,7 +630,7 @@ app.post("/api/send-report", async (req, res) => {
 app.use((_req, res) => res.status(404).json({ error: "Route not found" }));
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
-  console.error("Unhandled:", err.message);
+  console.error("Unhandled error:", err.message, err.stack);
   res.status(500).json({ error: "An unexpected error occurred." });
 });
 
